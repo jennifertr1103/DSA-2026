@@ -44,18 +44,4 @@ git push origin <tên-nhánh>
 
 ⚠️ **LƯU Ý:** Tuyệt đối **KHÔNG** dùng `git push origin main`
 
-## Cấu trúc thư mục
 
-- `lab5/` - Bài tập Lab 5 (8 câu hỏi)
-  - `q1/` - JOptionPane Input Dialog
-  - `q2/` - Draw Four Lines
-  - `q3/` - Fan Lines Design
-  - `q4/` - Line Art with Loops
-  - `q5/` - Drawing Spirals
-  - `q6/` - Concentric Circles
-  - `q7/` - Random Shapes
-  - `q8/` - Bar Chart Program
-
-Mỗi thư mục chứa:
-- File chính (ví dụ: `InputDialog.java`)
-- File test (`Test.java`)

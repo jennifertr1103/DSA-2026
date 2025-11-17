@@ -1,5 +1,5 @@
-package escape-from-oop;
-
 public class test {
-    
+    public static void main(String[] args) {
+        
+    }
 }

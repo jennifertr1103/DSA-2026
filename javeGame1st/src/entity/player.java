@@ -14,7 +14,7 @@ public class player extends entity{
     keyHander keyH ;
 
     public int screenX;
-    public final int screenY;
+    public  int screenY;
     public int camX;      // camera X
     public int lastCamX;
 
@@ -23,10 +23,10 @@ public class player extends entity{
         this.gp =gp ;
         this.keyH = keyH;
 
-
-        // vị trí nhân vật trong màn hình
-        screenX = gp.width / 2 - (gp.tileSize / 2);
-        screenY = gp.height * 2 / 3 +(gp.tileSize);
+//
+//        // vị trí nhân vật trong màn hình
+//        screenX = gp.width / 2 - (gp.tileSize / 2);
+//        screenY = gp.height * 2 / 3 +(gp.tileSize);
 
 
         // vị trí collusion trên player
@@ -39,10 +39,10 @@ public class player extends entity{
         setDefaultValue();
         getPlayerImage();
     }
-
+//vị trí nhân vật xuất hiện
     public void setDefaultValue(){
-         worldX= gp.tileSize*6;
-         worldY=gp.tileSize*11;
+         worldX= gp.tileSize*2;
+         worldY=gp.tileSize*5;
          speed = 4;
          direction ="down";
 
@@ -109,7 +109,6 @@ public class player extends entity{
                 }
             }
 
-
             gp.cChecker.checkTile(this);
             spriteCounter++;
             if (spriteCounter>10){
@@ -122,8 +121,24 @@ public class player extends entity{
                 spriteCounter=0;
             }
         }
+        if (keyH.bombKeyPressed) {
+            placeBomb();
+            keyH.consumeBombKey(); // Reset biến sau khi đã đặt bom thành công
+        }
 
         }
+
+    private void placeBomb() {
+        // Tính toán để quả bom luôn nằm chính giữa ô gạch (Snap to Grid)
+        int bombCol = (worldX + solidArea.x + solidArea.width / 2) / gp.tileSize;
+        int bombRow = (worldY + solidArea.y + solidArea.height / 2) / gp.tileSize;
+
+        // In ra console để kiểm tra trước
+        System.out.println("Đã đặt bom tại ô: Col " + bombCol + " - Row " + bombRow);
+        System.out.println("Bom đã được đặt! Số lượng bom hiện tại: " + gp.bombList.size());
+
+
+    }
 
 
 
@@ -164,9 +179,7 @@ public class player extends entity{
 
         }
 
-
-
-        g2.drawImage(image, screenX, screenY, gp.tileSize, gp.tileSize, null);
+        g2.drawImage(image, worldX, worldY, gp.tileSize, gp.tileSize, null);
 
 
         g2.setColor(Color.white);

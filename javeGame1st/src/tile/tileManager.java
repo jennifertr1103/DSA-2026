@@ -75,23 +75,24 @@ public class tileManager {
         int worldCol = 0;
         int worldRow = 0;
 
-
         while (worldCol < gp.maxWorldCol && worldRow < gp.maxWorldRow) {
 
             int tileNum = mapTileNum[worldCol][worldRow];
 
+            // Tọa độ thực của Tile trên bản đồ
             int worldX = worldCol * gp.tileSize;
             int worldY = worldRow * gp.tileSize;
-            int screenX = worldX - gp.player.worldX + gp.player.screenX;
-            int screenY = worldY - gp.player.worldY + gp.player.screenY;
 
-            if (worldX +gp.tileSize > gp.player.worldX - gp.player.screenX &&
-                    worldX -gp.tileSize < gp.player.worldX + gp.player.screenX  &&
-                    worldY +gp.tileSize> gp.player.worldY - gp.player.screenY &&
-                    worldY-gp.tileSize < gp.player.worldY + gp.player.screenY)
-            {
-                g2.drawImage(tile[tileNum].image, screenX, screenY, gp.tileSize, gp.tileSize, null);
+        /*
+           CAMERA ĐỨNG YÊN:
+           Chúng ta vẽ trực tiếp bằng worldX và worldY.
+           Nếu bạn muốn camera đứng yên ở góc (0,0), hãy dùng worldX, worldY.
+           Nếu muốn đứng yên ở một vị trí cụ thể, hãy trừ đi một hằng số cố định.
+        */
 
+            // Chỉ vẽ những Tile nằm trong phạm vi chiều rộng và chiều cao của màn hình Panel
+            if (worldX < gp.width && worldY < gp.height) {
+                g2.drawImage(tile[tileNum].image, worldX, worldY, gp.tileSize, gp.tileSize, null);
             }
 
             worldCol++;
@@ -99,8 +100,25 @@ public class tileManager {
             if (worldCol == gp.maxWorldCol) {
                 worldCol = 0;
                 worldRow++;
-
             }
         }
+
+    }
+
+    // Kiểm tra xem ô đó có phải tường cứng/vật cản không
+    public boolean isSolid(int col, int row) {
+        if(col < 0 || col >= gp.maxWorldCol || row < 0 || row >= gp.maxWorldRow) return true;
+        int tileNum = mapTileNum[col][row];
+        return tile[tileNum].collision;
+    }
+
+    // Kiểm tra xem có phải gạch (kiểu cũ) không - Hiện tại cứ để false để dùng InteractiveTile
+    public boolean isBrick(int col, int row) {
+        return false;
+    }
+
+    // Hàm hủy gạch kiểu cũ
+    public void destroyBrick(int col, int row) {
+        // Để trống vì bạn dùng IT_BreakableWall rồi
     }
 }

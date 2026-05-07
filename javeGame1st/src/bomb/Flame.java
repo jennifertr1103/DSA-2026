@@ -1,0 +1,104 @@
+package bomb;
+
+import Game_2D.gamePanel;
+import entity.Destructible;
+import entity.Direction;
+import entity.entity;
+
+import java.awt.Graphics2D;
+import java.util.List;
+
+/**
+ * One flame tile produced by an exploding Bomb.
+ *
+ * Responsibilities:
+ *  - Live for `durationTicks` ticks, then disappear.
+ *  - Each tick, run destroyTarget() against the registered Destructible
+ *    list and, if a target sits on this tile, call its
+ *    onDestroyedByFlame() (which may push a chain reaction onto the
+ *    algorithm's stack).
+ *
+ * SOLID notes:
+ *  - SRP: collision is here, drawing is in FlameAppearance.
+ *  - DIP: works against the Destructible interface, not concrete entity
+ *    types — adding monsters, items, crates is zero-change for Flame.
+ */
+public class Flame extends entity {
+
+    public static final int DEFAULT_DURATION_TICKS = 30; // ~0.5s @ 60fps
+
+    private final gamePanel gp;
+    private final FlameDirection flameDirection;
+    private final FlameAppearance appearance;
+    private final BombAlgorithm algorithm;
+
+    private final int col;
+    private final int row;
+    private final int totalDuration;
+    private int duration;       // remaining ticks
+    private boolean expired = false;
+
+    public Flame(gamePanel gp, int col, int row, FlameDirection dir,
+                 int durationTicks, FlameAppearance appearance, BombAlgorithm algorithm) {
+        this.gp = gp;
+        this.col = col;
+        this.row = row;
+        this.flameDirection = dir;
+        this.totalDuration = durationTicks;
+        this.duration = durationTicks;
+        this.appearance = appearance;
+        this.algorithm = algorithm;
+
+        this.worldX = col * gp.tileSize;
+        this.worldY = row * gp.tileSize;
+        this.direction = "down"; // Entity requires one
+    }
+
+    /** Required by Entity/Updatable. Ticks the duration; calls disappear() when done. */
+    @Override
+    public void update() {
+        if (expired) return;
+        if (duration > 0) duration--;
+        if (duration <= 0) disappear();
+    }
+
+    /**
+     * Iterates the destructible list and destroys any whose tile-grid
+     * position matches this flame's position. Called by BombAlgorithm
+     * once per tick while the flame is alive.
+     *
+     * Bricks are NOT processed here — they are destroyed at the moment
+     * of explosion in Bomb.spread() so that the spread itself stops at
+     * the brick and the destruction is deterministic.
+     */
+    public void destroyTarget(List<Destructible> targets) {
+        if (expired) return;
+        for (Destructible d : targets) {
+            if (d.isDestroyed()) continue;
+            if (d.getCol() == col && d.getRow() == row) {
+                d.onDestroyedByFlame();
+            }
+        }
+    }
+
+    /** Required by spec: clears the fire when the duration runs out. */
+    public void disappear() {
+        expired = true;
+    }
+
+    public boolean isExpired() { return expired; }
+    public int getCol()        { return col; }
+    public int getRow()        { return row; }
+    public FlameDirection getFlameDirection() { return flameDirection; }
+
+    @Override public int getScreenX()  { return worldX - (gp.player.worldX - gp.player.screenX); }
+    @Override public int getScreenY()  { return worldY - (gp.player.worldY - gp.player.screenY); }
+    @Override public int getDrawSize() { return gp.tileSize; }
+
+    @Override
+    public void draw(Graphics2D g2) {
+        if (expired) return;
+        appearance.draw(g2, getScreenX(), getScreenY(), gp.tileSize,
+                flameDirection, duration, totalDuration);
+    }
+}

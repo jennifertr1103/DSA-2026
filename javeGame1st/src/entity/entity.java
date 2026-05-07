@@ -15,6 +15,15 @@ public class entity {
 
     public Rectangle solidArea;
     public boolean collisionOn = false;
+    public int getScreenX() { return 0; }
+    public int getScreenY() { return 0; }
+    public int getDrawSize() { return 0; }
+
+    public void update() {
+    }
+
+    public void draw(Graphics2D g2) {
+    }
 }
 
 

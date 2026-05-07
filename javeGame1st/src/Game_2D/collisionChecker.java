@@ -1,6 +1,7 @@
 package Game_2D;
 
 import entity.entity;
+import tile_interactive.IT_BreakableWall;
 
 public class collisionChecker {
     gamePanel gp;
@@ -54,8 +55,25 @@ public class collisionChecker {
                 }
                 break;
         }
+    }
 
+    // Trong CollisionChecker.java
+    public void checkBombExplosion(int col, int row) {
+        for (int i = 0; i < gp.iTile.length; i++) {
+            if (gp.iTile[i] != null && gp.iTile[i] instanceof IT_BreakableWall) {
 
+                int tileCol = gp.iTile[i].worldX / gp.tileSize;
+                int tileRow = gp.iTile[i].worldY / gp.tileSize;
+
+                if (tileCol == col && tileRow == row) {
+                    // Gọi phương thức chuẩn của Destructible
+                    ((IT_BreakableWall) gp.iTile[i]).onDestroyedByFlame();
+
+                    // Lưu ý: Việc xóa gp.iTile[i] = null nên để lớp IT_BreakableWall
+                    // tự xử lý trong update() sau khi chạy xong hiệu ứng vỡ.
+                }
+            }
+        }
     }
 
 }

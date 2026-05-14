@@ -23,7 +23,7 @@ public class ItemSpawner {
 
     private void resetSpawnTimer() {
         // Random từ 15 đến 30 giây
-        spawnInterval = 15 * 60 + random.nextInt(15 * 60);
+        spawnInterval =  60+ random.nextInt(15 * 60);
         spawnTimer = spawnInterval;
     }
 

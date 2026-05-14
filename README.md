@@ -4,7 +4,7 @@
 
 Lấy link GitHub:
 ```
-https://github.com/billy2204/escape-from-oop.git
+https://github.com/jennifertr1103/DSA-2026/tree/master
 ```
 
 Di chuyển đến thư mục làm việc:
@@ -15,8 +15,8 @@ cd path/to/your/directory
 Khởi tạo và kéo code về:
 ```cmd
 git init
-git remote add origin https://github.com/billy2204/escape-from-oop.git
-git pull origin main
+git remote add origin https://github.com/jennifertr1103/DSA-2026/tree/master
+git pull origin master
 ```
 
 ## Hướng dẫn push code lên nhánh riêng

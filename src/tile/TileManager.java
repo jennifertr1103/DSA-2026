@@ -74,9 +74,12 @@ public class TileManager {
     }
 
     private boolean isSpawnProtected(int col, int row, int cols, int rows) {
-        boolean playerCorner = (col <= 2 && row <= 2);
-        boolean botCorner    = (col >= cols - 3 && row >= rows - 3);
-        return playerCorner || botCorner;
+        // Bảo vệ 4 góc cho 4 người chơi
+        boolean topLeft     = (col <= 2 && row <= 2);
+        boolean topRight    = (col >= cols - 3 && row <= 2);
+        boolean bottomLeft  = (col <= 2 && row >= rows - 3);
+        boolean bottomRight = (col >= cols - 3 && row >= rows - 3);
+        return topLeft || topRight || bottomLeft || bottomRight;
     }
 
     // ── Queries ────────────────────────────────────────────────────────────────

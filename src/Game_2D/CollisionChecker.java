@@ -15,9 +15,9 @@ public class CollisionChecker {
     public void checkTile(Entity entity) {
         // 1. Tọa độ hiện tại của Hitbox (World-space)
         int leftX = entity.worldX + entity.solidArea.x;
-        int rightX = leftX + entity.solidArea.width;
+        int rightX = leftX + entity.solidArea.width - 1;
         int topY = entity.worldY + entity.solidArea.y;
-        int bottomY = topY + entity.solidArea.height;
+        int bottomY = topY + entity.solidArea.height - 1;
 
         // 2. Dự đoán vị trí TIẾP THEO dựa trên tốc độ
         Direction dir = entity.direction;
@@ -25,6 +25,7 @@ public class CollisionChecker {
         int nextRightX = rightX + dir.dx * entity.speed;
         int nextTopY = topY + dir.dy * entity.speed;
         int nextBottomY = bottomY + dir.dy * entity.speed;
+
 
         // --- BƯỚC MỚI: KIỂM TRA BIÊN BẢN ĐỒ (WORLD BOUNDARY CHECK) ---
         // Chặn không cho các cạnh của Hitbox vượt quá giới hạn pixel của Map
@@ -74,6 +75,31 @@ public class CollisionChecker {
         if (gp.tileM.isSolid(probeColA, probeRowA) || gp.tileM.isSolid(probeColB, probeRowB)) {
             entity.collisionOn = true;
         }
+
+        // Kiểm tra va chạm với Bom (Bomb Collision)
+        if (!entity.collisionOn) {
+            if (isBombBlocking(entity, probeColA, probeRowA) || isBombBlocking(entity, probeColB, probeRowB)) {
+                entity.collisionOn = true;
+            }
+        }
+    }
+
+    /**
+     * Kiểm tra xem tại (col, row) có bom chặn đường không.
+     * Cho phép đi qua nếu entity hiện tại đang đè lên quả bom đó (để không bị kẹt khi vừa đặt bom).
+     */
+    private boolean isBombBlocking(Entity entity, int col, int row) {
+        for (bomb.Bomb b : gp.bombAlgo.getActiveBombs()) {
+            if (b.getCol() == col && b.getRow() == row) {
+                // Nếu entity hiện tại đã và đang đứng trên ô có bom này, cho phép di chuyển tiếp (thoát ra)
+                // Dùng tọa độ grid để check overlap đơn giản
+                if (entity.getCol() == col && entity.getRow() == row) {
+                    return false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     public void checkDamage(Entity entity, java.util.List<bomb.Flame> flames) {

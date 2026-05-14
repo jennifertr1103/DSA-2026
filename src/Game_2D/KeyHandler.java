@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 public class KeyHandler implements KeyListener {
 
     public boolean upPress, downPress, leftPress, rightPress;
-    public boolean restartPressed;
+    public boolean restartPressed, enterPressed;
 
     /**
      * Edge-triggered bomb flag: set on key-down, cleared by
@@ -51,6 +51,9 @@ public class KeyHandler implements KeyListener {
 
         // Restart (edge-triggered)
         bindings.put(KeyEvent.VK_R, p -> { if (p) restartPressed = true; });
+
+        // Enter (edge-triggered)
+        bindings.put(KeyEvent.VK_ENTER, p -> { if (p) enterPressed = true; });
     }
 
     /** Player calls this after consuming the bomb press. */
@@ -58,6 +61,9 @@ public class KeyHandler implements KeyListener {
 
     /** GamePanel calls this after consuming the restart press. */
     public void consumeRestartKey() { restartPressed = false; }
+
+    /** GamePanel calls this after consuming the enter press. */
+    public void consumeEnterKey() { enterPressed = false; }
 
     private void dispatch(int code, boolean pressed) {
         Consumer<Boolean> b = bindings.get(code);

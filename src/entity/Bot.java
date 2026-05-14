@@ -29,32 +29,32 @@ import java.util.Set;
  *   • computeDangerSet() replaced by Pathfinder.buildDangerSet() which
  *     properly respects hard-wall occlusion along each blast arm.
  */
+
 public class Bot extends Entity implements Destructible {
 
-    // ── State machine ────────────────────────────────────────────────────────
-
-    private enum BotState { HUNT, EVADE }
+    private enum BotState { HUNT, EVADE, CLEAR, COLLECT }
 
     private BotState aiState = BotState.HUNT;
 
     // ── Pathfinding / timing ─────────────────────────────────────────────────
 
-    private static final int DEFAULT_SPEED    = 2;
-    private static final int BOMB_COOLDOWN    = 80;  // ticks between placements
-    private static final int REPLAN_INTERVAL  = 20;  // ticks between BFS recalcs
+    private static final int DEFAULT_SPEED = 2;
+    private static final int BOMB_COOLDOWN = 80;  // ticks between placements
+    private static final int REPLAN_INTERVAL = 10; // Reduced for better responsiveness
 
-    private int bombCooldownTimer  = 0;
-    private int replanTimer        = 0;
+    private int bombCooldownTimer = 0;
+    private int replanTimer = 0;
+    private int lastActiveBombCount = 0;
+    private int lastActiveItemCount = 0;
 
-    /** Next grid cell to step toward. [-1,-1] = no target. */
     private int targetCol = -1, targetRow = -1;
 
     private final GamePanel gp;
+    private int botId;
 
-    // ── Construction ─────────────────────────────────────────────────────────
-
-    public Bot(GamePanel gp, int startCol, int startRow) {
+    public Bot(GamePanel gp, int startCol, int startRow, int botId) {
         this.gp   = gp;
+        this.botId = botId;
         worldX    = startCol * gp.tileSize;
         worldY    = startRow * gp.tileSize;
         speed     = DEFAULT_SPEED;
@@ -63,7 +63,20 @@ public class Bot extends Entity implements Destructible {
         solidArea.setBounds(8, 8, gp.tileSize - 16, gp.tileSize - 16);
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // ── Public methods for item effects ─────────────────────────────────────
+
+    public void applySpeedBoost(int boostAmount, int duration) {
+        // Simple speed boost for bot (could be expanded with timer like player)
+        this.speed = DEFAULT_SPEED + boostAmount;
+        // Reset speed after duration (using a simple timer in update)
+        speedBoostTimer = duration;
+    }
+
+    private int speedBoostTimer = 0;
+
+    public void addLife() {
+        if (life < 3) life++;
+    }
 
     @Override
     public void update() {
@@ -73,28 +86,75 @@ public class Bot extends Entity implements Destructible {
         bombCooldownTimer = Math.max(0, bombCooldownTimer - 1);
         replanTimer       = Math.max(0, replanTimer - 1);
 
-        int curCol = getCol();
-        int curRow = getRow();
+        if (speedBoostTimer > 0) {
+            speedBoostTimer--;
+            if (speedBoostTimer <= 0) speed = DEFAULT_SPEED;
+        }
 
-        // ── State decision ───────────────────────────────────────────────────
-        // Build the danger set once per tick (cheap on a 16×12 grid).
-        Set<String> danger = Pathfinder.buildDangerSet(gp);
-
-        boolean inDanger = danger.contains(Pathfinder.key(curCol, curRow));
-        aiState = inDanger ? BotState.EVADE : BotState.HUNT;
+        // Trigger immediate replan if bomb count changed or item count changed
+        int currentBombCount = gp.bombAlgo.getActiveBombs().size();
+        int currentItemCount = (gp.itemSpawner != null) ? gp.itemSpawner.getActiveItems().size() : 0;
+        
+        if (currentBombCount != lastActiveBombCount || currentItemCount != lastActiveItemCount) {
+            replanTimer = 0;
+            lastActiveBombCount = currentBombCount;
+            lastActiveItemCount = currentItemCount;
+        }
 
         // ── Plan (rate-limited, or immediately on state change) ──────────────
         if (replanTimer == 0) {
-            if (aiState == BotState.EVADE) {
+            int curCol = getCol();
+            int curRow = getRow();
+            Set<String> danger = Pathfinder.buildDangerSet(gp);
+            boolean inDanger = danger.contains(Pathfinder.key(curCol, curRow));
+
+            if (inDanger) {
+                aiState = BotState.EVADE;
                 planEvade(curCol, curRow, danger);
             } else {
-                planHunt(curCol, curRow, danger);
+                // Priority: HUNT -> CLEAR -> COLLECT
+                if (planHunt (curCol, curRow, danger)) {
+                    // target set in planHunt
+                } else if (planClear(curCol, curRow, danger)) {
+                    // target set in planClear
+                } else if (planCollect(curCol, curRow, danger)) {
+                    // target set in planCollect
+                } else {
+                    aiState = BotState.HUNT; // Default idle
+                    targetCol = -1;
+                    targetRow = -1;
+                }
             }
             replanTimer = REPLAN_INTERVAL;
         }
 
         // ── Move one step toward target cell ─────────────────────────────────
         stepTowardTarget();
+    }
+
+    private boolean isNarrowPassage(int col, int row) {
+        int walkableCount = 0;
+        if (!gp.tileM.isSolid(col, row - 1)) walkableCount++;
+        if (!gp.tileM.isSolid(col, row + 1)) walkableCount++;
+        if (!gp.tileM.isSolid(col - 1, row)) walkableCount++;
+        if (!gp.tileM.isSolid(col + 1, row)) walkableCount++;
+        return walkableCount <= 2;
+    }
+
+    // ── COLLECT: move to the nearest item ───────────────────────────────────
+
+    private boolean planCollect(int curCol, int curRow, Set<String> danger) {
+        int[] itemCell = Pathfinder.nearestItem(gp, curCol, curRow);
+        if (itemCell == null) return false;
+
+        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, itemCell[0], itemCell[1], danger);
+        if (path != null && path.size() > 1) {
+            aiState = BotState.COLLECT;
+            targetCol = path.get(1)[0];
+            targetRow = path.get(1)[1];
+            return true;
+        }
+        return false;
     }
 
     // ── EVADE: move to the nearest safe cell ─────────────────────────────────
@@ -111,31 +171,61 @@ public class Bot extends Entity implements Destructible {
         }
     }
 
+    // ── CLEAR: find and destroy a brick ─────────────────────────────────────
+
+    private boolean planClear(int curCol, int curRow, Set<String> danger) {
+        int[] brickCell = Pathfinder.nearestBrick(gp, curCol, curRow);
+        if (brickCell == null) return false;
+
+        aiState = BotState.CLEAR;
+        if (curCol == brickCell[0] && curRow == brickCell[1]) {
+            // Already next to a brick
+            if (bombCooldownTimer == 0) {
+                gp.bombAlgo.placeBomb(curCol, curRow, this);
+                bombCooldownTimer = BOMB_COOLDOWN;
+                aiState = BotState.EVADE;
+                planEvade(curCol, curRow, Pathfinder.buildDangerSet(gp));
+            }
+            return true;
+        }
+
+        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, brickCell[0], brickCell[1], danger);
+        if (path != null && path.size() > 1) {
+            targetCol = path.get(1)[0];
+            targetRow = path.get(1)[1];
+            return true;
+        }
+        return false;
+    }
+
     // ── HUNT: chase the player; place a bomb when close ───────────────────────
 
-    private void planHunt(int curCol, int curRow, Set<String> danger) {
+    private boolean planHunt(int curCol, int curRow, Set<String> danger) {
         int playerCol = gp.player.getCol();
         int playerRow = gp.player.getRow();
-
         int dist = Math.abs(playerCol - curCol) + Math.abs(playerRow - curRow);
 
-        if (dist <= 2 && bombCooldownTimer == 0) {
-            // Within striking range — drop a bomb then immediately evade
-            gp.bombAlgo.placeBomb(curCol, curRow, this);
-            bombCooldownTimer = BOMB_COOLDOWN;
+        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, playerCol, playerRow, danger);
+        if (path != null && path.size() > 1) {
+            aiState = BotState.HUNT;
 
-            // Rebuild danger set with the freshly placed bomb included
-            Set<String> newDanger = Pathfinder.buildDangerSet(gp);
-            planEvade(curCol, curRow, newDanger);
-        } else {
-            // Chase player, avoiding known danger zones
-            List<int[]> path = Pathfinder.shortestPath(
-                    gp, curCol, curRow, playerCol, playerRow, danger);
-            if (path != null && path.size() > 1) {
-                targetCol = path.get(1)[0];
-                targetRow = path.get(1)[1];
+            // Logic chặn đường (Blocking) hoặc tấn công (Attack)
+            boolean shouldBlock = (dist <= 3 && isNarrowPassage(curCol, curRow));
+            boolean shouldAttack = (dist <= 2);
+
+            if ((shouldBlock || shouldAttack) && bombCooldownTimer == 0) {
+                gp.bombAlgo.placeBomb(curCol, curRow, this);
+                bombCooldownTimer = BOMB_COOLDOWN;
+                aiState = BotState.EVADE;
+                planEvade(curCol, curRow, Pathfinder.buildDangerSet(gp));
+                return true;
             }
+
+            targetCol = path.get(1)[0];
+            targetRow = path.get(1)[1];
+            return true;
         }
+        return false;
     }
 
     // ── Pixel movement toward the planned grid cell ───────────────────────────
@@ -144,25 +234,40 @@ public class Bot extends Entity implements Destructible {
      * Moves the bot's pixel position toward (targetCol, targetRow) at
      * `speed` pixels per tick, using CollisionChecker so it respects walls
      * exactly like the Player does.
+     *
+     * Includes auto-alignment (centering) to prevent stuttering on corners.
      */
     private void stepTowardTarget() {
         if (targetCol < 0) return;
 
         int tx = targetCol * gp.tileSize;
         int ty = targetRow * gp.tileSize;
+
         int dx = Integer.compare(tx, worldX);
         int dy = Integer.compare(ty, worldY);
 
         if (dx != 0) {
+            // Moving horizontally - nudge Y to center of current row
+            int idealY = (worldY + gp.tileSize / 2) / gp.tileSize * gp.tileSize;
+            if (worldY < idealY)      worldY = Math.min(idealY, worldY + speed);
+            else if (worldY > idealY) worldY = Math.max(idealY, worldY - speed);
+
             direction    = (dx > 0) ? Direction.RIGHT : Direction.LEFT;
             collisionOn  = false;
             gp.cChecker.checkTile(this);
             if (!collisionOn) worldX += direction.dx * speed;
+            else replanTimer = 0; // If blocked, replan immediately
         } else if (dy != 0) {
+            // Moving vertically - nudge X to center of current column
+            int idealX = (worldX + gp.tileSize / 2) / gp.tileSize * gp.tileSize;
+            if (worldX < idealX)      worldX = Math.min(idealX, worldX + speed);
+            else if (worldX > idealX) worldX = Math.max(idealX, worldX - speed);
+
             direction    = (dy > 0) ? Direction.DOWN : Direction.UP;
             collisionOn  = false;
             gp.cChecker.checkTile(this);
             if (!collisionOn) worldY += direction.dy * speed;
+            else replanTimer = 0;
         }
 
         // Snap to target when close enough to avoid overshooting
@@ -207,19 +312,37 @@ public class Bot extends Entity implements Destructible {
         int y = worldY;
         int s = gp.tileSize - 4;
 
+        // Bot specific colors based on ID
+        Color primaryColor = new Color(45, 40, 50); // Default Kuromi Black
+        Color accentColor = new Color(200, 70, 100); // Default Pink
+        Color dressColor = Color.decode("#9752B1"); // Default Purple
+
+        if (botId == 1) { // Green Bot
+            primaryColor = new Color(40, 60, 45);
+            accentColor = new Color(100, 200, 120);
+            dressColor = Color.decode("#52B16B");
+        } else if (botId == 2) { // Orange/Fire Bot
+            primaryColor = new Color(60, 45, 40);
+            accentColor = new Color(255, 140, 50);
+            dressColor = Color.decode("#B16B52");
+        } else if (botId == 3) { // Blue/Ice Bot
+            primaryColor = new Color(40, 45, 60);
+            accentColor = new Color(100, 150, 255);
+            dressColor = Color.decode("#526BB1");
+        }
+
         // Drop shadow
         g2.setColor(new Color(0, 0, 0, 50));
         g2.fillOval(x + 8, y + s / 2 + 8, s - 10, s / 4);
 
         // ===== MŨ KUROMI (đầu lâu đen) =====
-        // Mũ đen hình đầu lâu
-        g2.setColor(new Color(45, 40, 50)); // Đen tím than
+        g2.setColor(primaryColor);
         g2.fillRoundRect(x + s / 5, y + s / 8, 3 * s / 5, s / 2, 15, 15);
 
         // Tai thỏ đen bên trái
-        g2.setColor(new Color(55, 48, 62));
+        g2.setColor(primaryColor.brighter());
         g2.fillOval(x + s / 6, y - s / 8, s / 4, s / 3);
-        g2.setColor(new Color(80, 70, 90)); // Tai trong màu hồng sẫm
+        g2.setColor(accentColor.darker()); 
         g2.fillOval(x + s / 6 + 3, y - s / 12, s / 7, s / 5);
 
         // Tai thỏ đen bên phải
@@ -241,31 +364,30 @@ public class Bot extends Entity implements Destructible {
         g2.fillRect(x + s / 2 + 2, y + s / 6 + 7, 3, 3);
 
         // Nơ hồng sẫm bên trái tai
-        g2.setColor(new Color(200, 70, 100)); // Đỏ hồng đậm
+        g2.setColor(accentColor);
         g2.fillOval(x + s / 5 - 2, y + s / 7, s / 6, s / 8);
         g2.fillOval(x + s / 5 + 1, y + s / 7 - 2, s / 8, s / 7);
 
         // ===== MẶT KUROMI =====
-        // Khuôn mặt trắng hồng
         g2.setColor(new Color(255, 235, 240));
         g2.fillOval(x + s / 4, y + s / 5, s / 2, s / 2);
 
-        // Mắt to đen với điểm nhấn hồng
+        // Mắt to đen
         g2.setColor(new Color(40, 35, 45));
         g2.fillOval(x + s * 5 / 16, y + s / 4, s / 8, s / 7);
         g2.fillOval(x + s * 9 / 16, y + s / 4, s / 8, s / 7);
 
         // Điểm sáng trong mắt
-        g2.setColor(new Color(255, 200, 220));
+        g2.setColor(accentColor.brighter());
         g2.fillOval(x + s * 5 / 16 + 2, y + s / 4 + 2, s / 20, s / 20);
         g2.fillOval(x + s * 9 / 16 + 2, y + s / 4 + 2, s / 20, s / 20);
 
-        // Mũi nhỏ màu đen
+        // Mũi nhỏ
         g2.setColor(new Color(40, 35, 45));
         g2.fillOval(x + s / 2 - 2, y + s / 3, s / 16, s / 16);
 
-        // Miệng đểu (cười nửa miệng - cá tính)
-        g2.setColor(new Color(160, 70, 90));
+        // Miệng đểu
+        g2.setColor(accentColor.darker());
         g2.setStroke(new java.awt.BasicStroke(2));
         g2.drawArc(x + s / 2 - 4, y + s / 3 + 4, 8, 6, 0, -160);
 
@@ -277,28 +399,27 @@ public class Bot extends Entity implements Destructible {
                 3
         );
 
-        // Má hồng (nhạt hơn My Melody)
+        // Má hồng
         g2.setColor(new Color(255, 130, 150, 100));
         g2.fillOval(x + s * 5 / 16 - 4, y + s * 5 / 16, s / 10, s / 12);
         g2.fillOval(x + s * 9 / 16 + 2, y + s * 5 / 16, s / 10, s / 12);
 
         // ===== THÂN =====
-        // Váy đen hồng (cá tính)
-        g2.setColor(Color.decode("#9752B1"));
+        g2.setColor(dressColor);
         g2.fillRoundRect(x + s / 5, y + s / 2, 3 * s / 5, s / 3, 15, 15);
 
-        // Đai/viền váy màu hồng sẫm
-        g2.setColor(Color.decode("#9B65B1"));
+        // Đai/viền váy
+        g2.setColor(dressColor.brighter());
         g2.fillRoundRect(x + s / 5 + 2, y + s / 2 + 2, 3 * s / 5 - 4, s / 10, 5, 5);
 
         // Nơ đen ở thân
-        g2.setColor(Color.decode("#962DB1"));
+        g2.setColor(dressColor.darker());
         g2.fillOval(x + s / 2 - 4, y + s / 2 + 12, 8, 6);
         g2.fillOval(x + s / 2 - 8, y + s / 2 + 10, 6, 8);
         g2.fillOval(x + s / 2 + 2, y + s / 2 + 10, 6, 8);
 
-        // Đuôi quỷ nhỏ phía sau (đặc trưng của Kuromi)
-        g2.setColor(new Color(45, 40, 55));
+        // Đuôi quỷ
+        g2.setColor(primaryColor);
         g2.fillOval(x + s - 12, y + s / 2 + 8, 8, 6);
         g2.fillPolygon(
                 new int[]{x + s - 8, x + s - 4, x + s - 12},
@@ -312,11 +433,11 @@ public class Bot extends Entity implements Destructible {
         g2.fillOval(x + s * 4 / 5, y + s / 2 + 8, s / 7, s / 9);
 
         // Chân
-        g2.setColor(new Color(50, 45, 60));
+        g2.setColor(primaryColor.darker());
         g2.fillOval(x + s / 3, y + s * 7 / 8, s / 8, s / 12);
         g2.fillOval(x + s / 2, y + s * 7 / 8, s / 8, s / 12);
 
-        // Râu thỏ (màu xám nhẹ)
+        // Râu thỏ
         g2.setColor(new Color(150, 140, 160, 120));
         g2.setStroke(new java.awt.BasicStroke(1));
         g2.drawLine(x + s / 4, y + s / 3, x + s / 6, y + s / 3 + 4);
@@ -324,15 +445,10 @@ public class Bot extends Entity implements Destructible {
         g2.drawLine(x + s * 3 / 4, y + s / 3, x + s * 5 / 6, y + s / 3 + 4);
         g2.drawLine(x + s * 3 / 4, y + s / 3 + 6, x + s * 5 / 6, y + s / 3 + 10);
 
-        // Bỏ dòng ghi chú "B" cũ, thay bằng "K" nếu muốn
-        // g2.setColor(Color.WHITE);
-        // g2.setFont(new Font("SansSerif", Font.BOLD, 11));
-        // g2.drawString("K", x + s / 2 - 3, y + s - 2);
-
-        // State indicator dot (giữ nguyên để biết trạng thái AI)
+        // State indicator dot
         g2.setColor(aiState == BotState.EVADE
                 ? new Color(255, 180, 50)  // Cam cho EVADE
-                : new Color(180, 50, 180)); // Tím cho HUNT
+                : accentColor); // Accent for HUNT
         g2.fillOval(x + s - 12, y + 4, 8, 8);
     }
     @Override public int getScreenX()  { return worldX;       }

@@ -26,6 +26,13 @@ public final class Pathfinder {
 
     public static String key(int col, int row) { return col + "," + row; }
 
+    public static boolean isBombAt(GamePanel gp, int col, int row) {
+        for (Bomb b : gp.bombAlgo.getActiveBombs()) {
+            if (b.getCol() == col && b.getRow() == row) return true;
+        }
+        return false;
+    }
+
     // ── Danger-set builder (NEW — replaces Bot.computeDangerSet) ─────────────
 
     /**
@@ -106,6 +113,7 @@ public final class Pathfinder {
                 int nr = curR + d[1];
 
                 if (gp.tileM.isSolid(nc, nr)) continue;
+                if (isBombAt(gp, nc, nr)) continue;
 
                 String k = key(nc, nr);
                 if (parent.containsKey(k)) continue;
@@ -153,6 +161,7 @@ public final class Pathfinder {
                 int nr = curR + d[1];
 
                 if (gp.tileM.isSolid(nc, nr)) continue;
+                if (isBombAt(gp, nc, nr)) continue;
 
                 String k = key(nc, nr);
                 if (visited.add(k)) {
@@ -161,6 +170,84 @@ public final class Pathfinder {
             }
         }
         return null;  // completely surrounded
+    }
+
+    /**
+     * BFS outward to find the nearest grid cell that is adjacent to a brick.
+     * Used by the Bot to clear paths when the player is blocked.
+     */
+    public static int[] nearestBrick(GamePanel gp, int sc, int sr) {
+        Queue<int[]> queue   = new LinkedList<>();
+        Set<String>  visited = new HashSet<>();
+
+        queue.offer(new int[]{ sc, sr });
+        visited.add(key(sc, sr));
+
+        int[][] dirs = {{ 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 }};
+
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            int cc = cur[0], cr = cur[1];
+
+            // Check if any neighbor is a brick
+            for (int[] d : dirs) {
+                int nc = cc + d[0];
+                int nr = cr + d[1];
+                if (gp.tileM.isBrick(nc, nr)) return cur;
+            }
+
+            // Otherwise, keep searching through empty paths
+            for (int[] d : dirs) {
+                int nc = cc + d[0];
+                int nr = cr + d[1];
+                if (!gp.tileM.isSolid(nc, nr) && !isBombAt(gp, nc, nr)) {
+                    String k = key(nc, nr);
+                    if (visited.add(k)) {
+                        queue.offer(new int[]{ nc, nr });
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * BFS outward to find the nearest grid cell that contains an item.
+     */
+    public static int[] nearestItem(GamePanel gp, int sc, int sr) {
+        if (gp.itemSpawner == null || gp.itemSpawner.getActiveItems().isEmpty()) return null;
+
+        Queue<int[]> queue   = new LinkedList<>();
+        Set<String>  visited = new HashSet<>();
+
+        queue.offer(new int[]{ sc, sr });
+        visited.add(key(sc, sr));
+
+        int[][] dirs = {{ 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 }};
+
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            int cc = cur[0], cr = cur[1];
+
+            // Check if this cell has an item
+            for (Item item : gp.itemSpawner.getActiveItems()) {
+                if (item.getCol() == cc && item.getRow() == cr) return cur;
+            }
+
+            // Otherwise, keep searching through empty paths
+            for (int[] d : dirs) {
+                int nc = cc + d[0];
+                int nr = cr + d[1];
+                if (!gp.tileM.isSolid(nc, nr) && !isBombAt(gp, nc, nr)) {
+                    String k = key(nc, nr);
+                    if (visited.add(k)) {
+                        queue.offer(new int[]{ nc, nr });
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     // ── Path reconstruction helper ────────────────────────────────────────────

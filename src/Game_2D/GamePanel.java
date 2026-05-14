@@ -44,12 +44,13 @@ public class GamePanel extends JPanel implements Runnable {
     public final KeyHandler     keyH;
     public final CollisionChecker cChecker;
     public Player player;
-    public Bot    bot;
+    public java.util.List<Bot> bots = new java.util.ArrayList<>();
     public BombAlgorithm bombAlgo;
-    public ItemSpawner itemSpawner;  // THÊM DÒNG NÀY
+    public ItemSpawner itemSpawner;
 
     // ── Game state ──────────────────────────────────────────────────────────
-    private boolean gameOver    = false;
+    public enum GameState { MENU, PLAY, GAME_OVER }
+    private GameState gameState = GameState.MENU;
     private String  winnerLabel = "";
 
     // ── Thread ──────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ public class GamePanel extends JPanel implements Runnable {
         this.cChecker = new CollisionChecker(this);
         this.tileM    = new TileManager(this);
 
-        resetGame();   // initialises player, bot, bombAlgo, itemSpawner
+        resetGame();   // initialises player, bots, bombAlgo, itemSpawner
 
         setPreferredSize(new Dimension(width, height + HUD_HEIGHT));
         setBackground(new Color(12, 12, 16));
@@ -73,25 +74,30 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     /**
-     * Creates fresh player / bot / bombAlgo / itemSpawner instances.
+     * Creates fresh player / bots / bombAlgo / itemSpawner instances.
      * Called at construction and on every restart.
      */
     private void resetGame() {
         bombAlgo = new BombAlgorithm(this);
 
-        // Spawn positions: player top-left (col 1, row 1);
-        //                  bot bottom-right (col 14, row 10).
+        // Spawn positions: 
+        // Corner 1: (1, 1) -> Player
+        // Corner 2: (13, 1) -> Bot 1
+        // Corner 3: (1, 10) -> Bot 2
+        // Corner 4: (13, 10) -> Bot 3
         player = new Player(this, keyH);
-        bot    = new Bot(this, 14, 10);
-
-        // Register AFTER construction so neither reference is null
         bombAlgo.registerDestructible(player);
-        bombAlgo.registerDestructible(bot);
 
-        // THÊM DÒNG NÀY - Khởi tạo item spawner
+        bots.clear();
+        bots.add(new Bot(this, 13, 1, 1));
+        bots.add(new Bot(this, 1, 10, 2));
+        bots.add(new Bot(this, 13, 10, 3));
+
+        for (Bot b : bots) {
+            bombAlgo.registerDestructible(b);
+        }
+
         itemSpawner = new ItemSpawner(this);
-
-        gameOver    = false;
         winnerLabel = "";
     }
 
@@ -134,33 +140,62 @@ public class GamePanel extends JPanel implements Runnable {
     // ── Update ───────────────────────────────────────────────────────────────
 
     public void update() {
+        if (gameState == GameState.MENU) {
+            if (keyH.enterPressed) {
+                keyH.consumeEnterKey();
+                gameState = GameState.PLAY;
+            }
+            return;
+        }
+
         // Restart check (processed even when game is over)
         if (keyH.restartPressed) {
             keyH.consumeRestartKey();
             resetGame();
+            gameState = GameState.PLAY;
             return;
         }
 
-        if (gameOver) return;
+        if (gameState == GameState.GAME_OVER) return;
 
         player.update();
-        bot.update();
+        for (int i = 0; i < bots.size(); i++) {
+            Bot b = bots.get(i);
+            b.update();
+        }
+        
         bombAlgo.update();
 
-        // THÊM CÁC DÒNG NÀY - Update item system
+        // Update item system
         itemSpawner.update();
-        itemSpawner.checkPickup(player); // Player nhặt item
+        itemSpawner.checkPickup(player); 
+        for (Bot b : bots) {
+            itemSpawner.checkPickup(b);
+        }
 
         checkGameOver();
     }
 
     private void checkGameOver() {
-        boolean playerDead = !player.alive;
-        boolean botDead    = !bot.alive;
+        int aliveCount = 0;
+        String lastSurvivor = "";
 
-        if (playerDead && botDead)  { gameOver = true; winnerLabel = "DRAW";   }
-        else if (playerDead)        { gameOver = true; winnerLabel = "BOT";    }
-        else if (botDead)           { gameOver = true; winnerLabel = "PLAYER"; }
+        if (player.alive) {
+            aliveCount++;
+            lastSurvivor = "PLAYER";
+        }
+
+        for (int i = 0; i < bots.size(); i++) {
+            if (bots.get(i).alive) {
+                aliveCount++;
+                lastSurvivor = "BOT " + (i + 1);
+            }
+        }
+
+        if (aliveCount <= 1) {
+            gameState = GameState.GAME_OVER;
+            winnerLabel = aliveCount == 0 ? "DRAW" : lastSurvivor;
+        }
     }
 
     // ── Rendering ────────────────────────────────────────────────────────────
@@ -172,19 +207,67 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,  RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING,     RenderingHints.VALUE_RENDER_QUALITY);
 
+        if (gameState == GameState.MENU) {
+            drawMenu(g2);
+            return;
+        }
+
         tileM.draw(g2);
         bombAlgo.draw(g2);
         player.draw(g2);
-        bot.draw(g2);
+        for (Bot b : bots) {
+            b.draw(g2);
+        }
 
-        // THÊM DÒNG NÀY - Vẽ item
         if (itemSpawner != null) {
             itemSpawner.draw(g2);
         }
 
         drawHUD(g2);
 
-        if (gameOver) drawGameOver(g2);
+        if (gameState == GameState.GAME_OVER) drawGameOver(g2);
+    }
+
+    private void drawMenu(Graphics2D g2) {
+        // Menu background
+        g2.setColor(new Color(12, 12, 16));
+        g2.fillRect(0, 0, width, height + HUD_HEIGHT);
+
+        // Title
+        g2.setFont(new Font("SansSerif", Font.BOLD, 80));
+        String title = "BOM IT";
+        FontMetrics fm = g2.getFontMetrics();
+        int x = (width - fm.stringWidth(title)) / 2;
+        int y = height / 3;
+
+        // Title shadow
+        g2.setColor(new Color(255, 100, 130, 100));
+        g2.drawString(title, x + 5, y + 5);
+        g2.setColor(new Color(255, 200, 220));
+        g2.drawString(title, x, y);
+
+        // Subtitle
+        g2.setFont(new Font("SansSerif", Font.BOLD, 30));
+        String sub = "4 PLAYERS BATTLE";
+        fm = g2.getFontMetrics();
+        g2.setColor(new Color(150, 150, 165));
+        g2.drawString(sub, (width - fm.stringWidth(sub)) / 2, y + 60);
+
+        // Instructions
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 24));
+        String start = "Press ENTER to Start";
+        fm = g2.getFontMetrics();
+        if ((System.currentTimeMillis() / 500) % 2 == 0) {
+            g2.setColor(Color.WHITE);
+            g2.drawString(start, (width - fm.stringWidth(start)) / 2, height * 2 / 3);
+        }
+
+        // Controls hint
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        String controls = "WASD/Arrows: Move | SPACE: Bomb | R: Restart";
+        fm = g2.getFontMetrics();
+        g2.setColor(new Color(100, 100, 110));
+        g2.drawString(controls, (width - fm.stringWidth(controls)) / 2, height * 2 / 3 + 100);
     }
 
     // ── HUD ──────────────────────────────────────────────────────────────────
@@ -198,56 +281,30 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(new Color(80, 90, 110));
         g2.drawLine(0, hudY, width, hudY);
 
-        Font labelFont = new Font("SansSerif", Font.BOLD, 13);
+        Font labelFont = new Font("SansSerif", Font.BOLD, 11);
         g2.setFont(labelFont);
 
-        // ── Player lives ────────────────────────────────────────────────────
-        g2.setColor(new Color(255, 140, 170)); // Màu hồng cho player
-        g2.drawString("MY MELODY", 12, hudY + 18);
+        // Player Status
+        drawEntityStatus(g2, 20, hudY + 15, "PLAYER", player.life, player.alive, new Color(255, 140, 170));
+
+        // Bots Status
+        for (int i = 0; i < bots.size(); i++) {
+            Bot b = bots.get(i);
+            int bx = 200 + i * 150;
+            drawEntityStatus(g2, bx, hudY + 15, "BOT " + (i + 1), b.life, b.alive, new Color(180, 70, 100));
+        }
+    }
+
+    private void drawEntityStatus(Graphics2D g2, int x, int y, String label, int life, boolean alive, Color color) {
+        if (!alive) g2.setColor(new Color(100, 100, 110));
+        else g2.setColor(color);
+        
+        g2.drawString(label, x, y);
         for (int i = 0; i < 3; i++) {
-            g2.setColor(i < player.life ? new Color(255, 100, 130) : new Color(60, 50, 55));
-            g2.fillOval(12 + i * 19, hudY + 26, 14, 14);
-            g2.setColor(new Color(0, 0, 0, 60));
-            g2.drawOval(12 + i * 19, hudY + 26, 14, 14);
+            if (i < life && alive) g2.setColor(color);
+            else g2.setColor(new Color(60, 50, 55));
+            g2.fillOval(x + i * 15, y + 5, 10, 10);
         }
-
-        // ── Speed Boost Indicator (THÊM PHẦN NÀY) ─────────────────────────────
-        if (player.getSpeedBoostTimer() > 0) {
-            // Khung nền
-            g2.setColor(new Color(100, 200, 255, 50));
-            g2.fillRoundRect(12, hudY + 44, 80, 14, 7, 7);
-
-            // Thanh thời gian
-            float percent = player.getSpeedBoostTimer() / (10f * 60f);
-            g2.setColor(new Color(100, 200, 255));
-            g2.fillRoundRect(12, hudY + 44, (int)(80 * percent), 14, 7, 7);
-
-            // Chữ
-            g2.setColor(Color.WHITE);
-            g2.setFont(new Font("SansSerif", Font.BOLD, 9));
-            int boostAmount = player.getCurrentSpeed() - player.getOriginalSpeed();
-            g2.drawString("SPEED +" + boostAmount, 16, hudY + 55);
-        }
-
-        // ── Bot lives ───────────────────────────────────────────────────────
-        g2.setColor(new Color(180, 70, 100)); // Màu hồng đậm/đỏ cho Kuromi
-        FontMetrics fm = g2.getFontMetrics();
-        String botLabel = "KUROMI";
-        int bx = width - fm.stringWidth(botLabel) - 14;
-        g2.drawString(botLabel, bx, hudY + 18);
-        for (int i = 0; i < 3; i++) {
-            g2.setColor(i < bot.life ? new Color(200, 70, 100) : new Color(60, 50, 55));
-            g2.fillOval(width - 70 + i * 19, hudY + 26, 14, 14);
-            g2.setColor(new Color(0, 0, 0, 60));
-            g2.drawOval(width - 70 + i * 19, hudY + 26, 14, 14);
-        }
-
-        // ── Controls hint ───────────────────────────────────────────────────
-        g2.setColor(new Color(150, 150, 165));
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        String hint = "WASD / Arrows: Move    Space: Bomb    R: Restart";
-        fm = g2.getFontMetrics();
-        g2.drawString(hint, (width - fm.stringWidth(hint)) / 2, hudY + HUD_HEIGHT - 6);
     }
 
     // ── Game-over overlay ─────────────────────────────────────────────────────
@@ -268,8 +325,8 @@ public class GamePanel extends JPanel implements Runnable {
         g2.drawString(line, (width - fm.stringWidth(line)) / 2 + 3, height / 2 + 3);
 
         // Coloured text
-        Color textCol = winnerLabel.equals("PLAYER") ? new Color(255, 140, 170)  // Hồng cho My Melody
-                : winnerLabel.equals("BOT")    ? new Color(180, 70, 100)   // Đỏ hồng cho Kuromi
+        Color textCol = winnerLabel.startsWith("PLAYER") ? new Color(255, 140, 170)
+                : winnerLabel.startsWith("BOT")    ? new Color(180, 70, 100)
                 :                                new Color(230, 205, 60);
         g2.setColor(textCol);
         g2.drawString(line, (width - fm.stringWidth(line)) / 2, height / 2);

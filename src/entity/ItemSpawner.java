@@ -81,7 +81,14 @@ public class ItemSpawner {
 
                 // Không spawn lên player hoặc bot
                 if (gp.player.getCol() == col && gp.player.getRow() == row) continue;
-                if (gp.bot.getCol() == col && gp.bot.getRow() == row) continue;
+                boolean onBot = false;
+                for (Bot b : gp.bots) {
+                    if (b.getCol() == col && b.getRow() == row) {
+                        onBot = true;
+                        break;
+                    }
+                }
+                if (onBot) continue;
 
                 // Hợp lệ
                 validPositions.add(new int[]{col, row});
@@ -96,33 +103,41 @@ public class ItemSpawner {
         }
     }
 
-    /**
-     * Kiểm tra player có nhặt item không
-     * Gọi mỗi frame trong Player.update()
-     */
-    public void checkPickup(Player player) {
-        int playerCol = player.getCol();
-        int playerRow = player.getRow();
+
+    public void checkPickup(Entity entity) {
+        int col = entity.getCol();
+        int row = entity.getRow();
 
         for (int i = activeItems.size() - 1; i >= 0; i--) {
             Item item = activeItems.get(i);
-            if (item.getCol() == playerCol && item.getRow() == playerRow) {
-                applyItemEffect(player, item.getType());
+            if (item.getCol() == col && item.getRow() == row) {
+                applyItemEffect(entity, item.getType());
                 activeItems.remove(i);
             }
         }
     }
 
-    private void applyItemEffect(Player player, ItemType type) {
-        switch (type) {
-            case SPEED_BOOST:
-                // Tăng tốc +2 trong 10s
-                player.applySpeedBoost(2, 10 * 60); // +2 speed, 600 ticks
-                break;
-            case EXTRA_LIFE:
-                // Thêm 1 tim
-                player.addLife();
-                break;
+    private void applyItemEffect(Entity entity, ItemType type) {
+        if (entity instanceof Player) {
+            Player p = (Player) entity;
+            switch (type) {
+                case SPEED_BOOST:
+                    p.applySpeedBoost(2, 10 * 60);
+                    break;
+                case EXTRA_LIFE:
+                    p.addLife();
+                    break;
+            }
+        } else if (entity instanceof Bot) {
+            Bot b = (Bot) entity;
+            switch (type) {
+                case SPEED_BOOST:
+                    b.applySpeedBoost(2, 10 * 60);
+                    break;
+                case EXTRA_LIFE:
+                    b.addLife();
+                    break;
+            }
         }
     }
 

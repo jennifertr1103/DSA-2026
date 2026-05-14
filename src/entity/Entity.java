@@ -27,6 +27,7 @@ import java.util.Queue;
  *     invincibility window added so rapid multi-hits are ignored.
  *   • Sprite / animation helpers kept exactly as the original.
  */
+
 public abstract class Entity implements Updatable, Renderable {
 
     public int worldX, worldY;
@@ -153,4 +154,6 @@ public abstract class Entity implements Updatable, Renderable {
     public abstract int getScreenX();
     public abstract int getScreenY();
     public abstract int getDrawSize();
+    public abstract int getCol();
+    public abstract int getRow();
 }

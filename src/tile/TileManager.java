@@ -74,7 +74,7 @@ public class TileManager {
     }
 
     private boolean isSpawnProtected(int col, int row, int cols, int rows) {
-        // Bảo vệ 4 góc cho 4 người chơi
+        // Bảo vệ 4 góc cho 4 người (có thể chuyển thành mode 2 người chơi trong tương lai)
         boolean topLeft     = (col <= 2 && row <= 2);
         boolean topRight    = (col >= cols - 3 && row <= 2);
         boolean bottomLeft  = (col <= 2 && row >= rows - 3);

@@ -27,7 +27,6 @@ public class CollisionChecker {
         int nextBottomY = bottomY + dir.dy * entity.speed;
 
 
-        // --- BƯỚC MỚI: KIỂM TRA BIÊN BẢN ĐỒ (WORLD BOUNDARY CHECK) ---
         // Chặn không cho các cạnh của Hitbox vượt quá giới hạn pixel của Map
         if (nextLeftX < 0 ||
                 nextRightX > gp.maxWorldCol * gp.tileSize ||
@@ -35,7 +34,7 @@ public class CollisionChecker {
                 nextBottomY > gp.maxWorldRow * gp.tileSize) {
 
             entity.collisionOn = true;
-            return; // Dừng lại luôn, không cần check Tile bên dưới nữa
+            return; // Dừng lại, không cần check Tile bên dưới nữa
         }
 
         // 3. Chuyển đổi tọa độ pixel dự đoán sang tọa độ ô lưới (Tile grid)

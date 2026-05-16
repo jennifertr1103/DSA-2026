@@ -39,7 +39,11 @@ public class TileManager {
         this.gp         = gp;
         this.tile       = buildCatalog();
         this.mapTileNum = new int[gp.maxWorldCol][gp.maxWorldRow];
-        generateMap(new Random(0xDEADBEEFL));
+        reset();
+    }
+
+    public void reset() {
+        generateMap(new Random(System.currentTimeMillis()));
     }
 
     private Tile[] buildCatalog() {

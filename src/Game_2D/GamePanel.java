@@ -78,6 +78,7 @@ public class GamePanel extends JPanel implements Runnable {
      * Called at construction and on every restart.
      */
     private void resetGame() {
+        if (tileM != null) tileM.reset();
         bombAlgo = new BombAlgorithm(this);
 
         // Spawn positions: 
@@ -177,13 +178,15 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void checkGameOver() {
-        int aliveCount = 0;
-        String lastSurvivor = "";
-
-        if (player.alive) {
-            aliveCount++;
-            lastSurvivor = "PLAYER";
+        // If player is dead, game ends immediately
+        if (!player.alive) {
+            gameState = GameState.GAME_OVER;
+            winnerLabel = "BOT";
+            return;
         }
+
+        int aliveCount = 1; // Player is alive
+        String lastSurvivor = "PLAYER";
 
         for (int i = 0; i < bots.size(); i++) {
             if (bots.get(i).alive) {
@@ -194,7 +197,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         if (aliveCount <= 1) {
             gameState = GameState.GAME_OVER;
-            winnerLabel = aliveCount == 0 ? "DRAW" : lastSurvivor;
+            winnerLabel = lastSurvivor; // Should be PLAYER if aliveCount is 1
         }
     }
 

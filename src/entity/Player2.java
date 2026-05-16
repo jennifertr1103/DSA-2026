@@ -72,6 +72,8 @@ public class Player2 extends Entity implements Destructible {
     public void update() {
         if (!alive) return;
 
+
+
         if (speedBoostTimer > 0) {
             speedBoostTimer--;
             if (speedBoostTimer <= 0) speed = originalSpeed;
@@ -79,11 +81,14 @@ public class Player2 extends Entity implements Destructible {
 
         // Bomb placement with Enter key
         if (keyH2.bombKeyPressed) {
+
             keyH2.consumeBombKey();
             gp.bombAlgo.placeBomb(getCol(), getRow(), this);
         }
 
         boolean anyKey = keyH2.upPress || keyH2.downPress || keyH2.leftPress || keyH2.rightPress;
+
+
         if (anyKey) {
             if (keyH2.upPress) direction = Direction.UP;
             else if (keyH2.downPress) direction = Direction.DOWN;
@@ -95,6 +100,7 @@ public class Player2 extends Entity implements Destructible {
             if (!collisionOn) {
                 worldX += direction.dx * speed;
                 worldY += direction.dy * speed;
+                System.out.println("Player2 moved to: " + worldX + "," + worldY); // DEBUG
             }
             advanceWalkAnimation();
         }

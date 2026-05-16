@@ -42,6 +42,8 @@ public class Bot extends Entity implements Destructible {
     private static final int BOMB_COOLDOWN = 80;  // ticks between placements
     private static final int REPLAN_INTERVAL = 10; // Reduced for better responsiveness
 
+    private int startDelayTimer = 0;
+    private boolean isActive = true;
     private int bombCooldownTimer = 0;
     private int replanTimer = 0;
     private int lastActiveBombCount = 0;
@@ -78,9 +80,29 @@ public class Bot extends Entity implements Destructible {
         if (life < 3) life++;
     }
 
+    public void setStartDelay(int seconds) {
+        if (seconds > 0) {
+            this.startDelayTimer = seconds * 60;  // 60 FPS
+            this.isActive = false;
+        } else {
+            this.startDelayTimer = 0;
+            this.isActive = true;
+        }
+    }
+
     @Override
     public void update() {
         if (!alive) return;
+        if (!isActive) {
+            if (startDelayTimer > 0) {
+                startDelayTimer--;
+                if (startDelayTimer <= 0) {
+                    isActive = true;
+                }
+            }
+            return;  // Bot chưa active thì không làm gì cả
+        }
+
 
         updateCommonLogic();
         bombCooldownTimer = Math.max(0, bombCooldownTimer - 1);
@@ -94,7 +116,7 @@ public class Bot extends Entity implements Destructible {
         // Trigger immediate replan if bomb count changed or item count changed
         int currentBombCount = gp.bombAlgo.getActiveBombs().size();
         int currentItemCount = (gp.itemSpawner != null) ? gp.itemSpawner.getActiveItems().size() : 0;
-        
+
         if (currentBombCount != lastActiveBombCount || currentItemCount != lastActiveItemCount) {
             replanTimer = 0;
             lastActiveBombCount = currentBombCount;
@@ -342,7 +364,7 @@ public class Bot extends Entity implements Destructible {
         // Tai thỏ đen bên trái
         g2.setColor(primaryColor.brighter());
         g2.fillOval(x + s / 6, y - s / 8, s / 4, s / 3);
-        g2.setColor(accentColor.darker()); 
+        g2.setColor(accentColor.darker());
         g2.fillOval(x + s / 6 + 3, y - s / 12, s / 7, s / 5);
 
         // Tai thỏ đen bên phải

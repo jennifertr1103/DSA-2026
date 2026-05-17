@@ -3,6 +3,8 @@ package bomb;
 import Game_2D.GamePanel;
 import entity.Destructible;
 import entity.Entity;
+import sound.SoundManager;
+import sound.SoundManager.SoundType;
 
 import java.awt.Graphics2D;
 import java.util.ArrayDeque;
@@ -15,14 +17,6 @@ import java.util.Queue;
 
 /**
  * Manages all active bombs and flames on the map.
- *
- * CHANGES from original:
- *   • placeBomb(col, row, owner) — new overload that records the Entity
- *     who placed the bomb.  On detonation the bomb is removed from its
- *     owner's personal Queue<Bomb> (per-entity FIFO requirement).
- *   • Old placeBomb(col, row) kept as a convenience no-op owner overload.
- *   • Everything else (FIFO bombQueue, LIFO chainReactionStack, flame
- *     aging, destructible sweeps) is identical to the original.
  */
 public class BombAlgorithm {
 
@@ -32,26 +26,30 @@ public class BombAlgorithm {
     private final BombAppearance  bombAppearance  = new BombAppearance();
     private final FlameAppearance flameAppearance = new FlameAppearance();
 
+    // Sound manager reference
+    private SoundManager soundManager;
+
+    // Cooldown để tránh spam sound bomb quá nhiều cùng lúc
+    private long lastBombSoundTime = 0;
+    private static final long BOMB_SOUND_COOLDOWN_MS = 100; // 100ms giữa các lần play
+
     /** Placed bombs awaiting detonation — FIFO order. */
     private final Queue<Bomb> bombQueue = new LinkedList<>();
 
-    /**
-     * Chain-reaction stack — LIFO.
-     * When bomb A's flame hits bomb B, B is pushed here; it explodes on
-     * the next tick so the cascade is deterministic and stack-safe.
-     */
+    /** Chain-reaction stack — LIFO. */
     private final Deque<Bomb> chainReactionStack = new ArrayDeque<>();
 
     /** Currently burning flame tiles. */
     private final List<Flame> activeFlames = new ArrayList<>();
 
-    /** Everything that can be damaged by a flame (entities + other bombs). */
+    /** Everything that can be damaged by a flame. */
     private final List<Destructible> destructibles = new ArrayList<>();
 
     // ── Construction ─────────────────────────────────────────────────────────
 
     public BombAlgorithm(GamePanel gp) {
         this.gp = gp;
+        this.soundManager = gp.soundManager;
     }
 
     // ── Destructible registry ─────────────────────────────────────────────────
@@ -66,16 +64,6 @@ public class BombAlgorithm {
 
     // ── Bomb placement ────────────────────────────────────────────────────────
 
-    /**
-     * Primary placement method — owner-aware.
-     *
-     * Enforces the per-entity bomb cap via owner.getBombQueue().size().
-     * On success the bomb is added to BOTH:
-     *   1. this.bombQueue     (global FIFO for timing)
-     *   2. owner.getBombQueue() (personal FIFO for cap / UI)
-     *
-     * Returns the Bomb, or null if rejected (duplicate cell or cap reached).
-     */
     public Bomb placeBomb(int col, int row, Entity owner) {
         // Reject duplicate cell
         for (Bomb existing : bombQueue) {
@@ -85,38 +73,27 @@ public class BombAlgorithm {
         if (owner != null && owner.getBombQueue().size() >= owner.getMaxBombs()) return null;
 
         Bomb bomb = new Bomb(gp, this, col, row,
-                             Bomb.DEFAULT_COUNTDOWN_TICKS,
-                             Bomb.DEFAULT_EXPLOSION_SCALE,
-                             bombAppearance, owner);
+                Bomb.DEFAULT_COUNTDOWN_TICKS,
+                Bomb.DEFAULT_EXPLOSION_SCALE,
+                bombAppearance, owner);
 
-        bombQueue.offer(bomb);                     // global FIFO
-        if (owner != null) owner.getBombQueue().offer(bomb);  // personal FIFO
+        bombQueue.offer(bomb);
+        if (owner != null) owner.getBombQueue().offer(bomb);
 
-        registerDestructible(bomb);                // flames can chain-detonate it
+        registerDestructible(bomb);
         return bomb;
     }
 
-    /** Convenience overload (no owner — used by tests or map events). */
     public Bomb placeBomb(int col, int row) {
         return placeBomb(col, row, null);
     }
 
-    // ── Chain-reaction hook ───────────────────────────────────────────────────
-
-    /** Called by Bomb.onDestroyedByFlame(): defers the cascade to the LIFO stack. */
     public void queueChainReaction(Bomb bomb) {
         chainReactionStack.push(bomb);
     }
 
     // ── Per-frame update ──────────────────────────────────────────────────────
 
-    /**
-     * Order:
-     *  1. FIFO bomb timers — detonate anything whose countdown reached 0.
-     *  2. LIFO chain reactions — pop and detonate cascading bombs.
-     *  3. Age flames; each calls destroyTarget() against the registry.
-     *  4. Sweep expired flames and destroyed destructibles.
-     */
     public void update() {
         // 1) FIFO ──────────────────────────────────────────────────────────────
         List<Bomb> ready = new ArrayList<>();
@@ -148,13 +125,29 @@ public class BombAlgorithm {
     }
 
     private void detonate(Bomb bomb) {
-        // Remove from owner's personal queue so they can place the next bomb
+        // Play bomb explosion sound (with cooldown to avoid spam)
+        playBombSound();
+
+        // Remove from owner's personal queue
         if (bomb.getOwner() != null) {
             bomb.getOwner().getBombQueue().remove(bomb);
         }
         List<Flame> spawned = bomb.explode(flameAppearance, DEFAULT_FLAME_DURATION_TICKS);
         activeFlames.addAll(spawned);
         for (Flame f : spawned) f.destroyTarget(destructibles);
+    }
+
+    /**
+     * Play bomb sound with cooldown to avoid overlapping too many explosions
+     */
+    private void playBombSound() {
+        if (soundManager == null) return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastBombSoundTime >= BOMB_SOUND_COOLDOWN_MS) {
+            lastBombSoundTime = now;
+            soundManager.play(SoundType.BOMB);
+        }
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────

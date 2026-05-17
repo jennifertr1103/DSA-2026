@@ -5,6 +5,8 @@ import entity.Bot;
 import entity.Player;
 import entity.ItemSpawner;  // THÊM IMPORT NÀY
 import tile.TileManager;
+import sound.SoundManager;
+import sound.SoundManager.SoundType;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -51,6 +53,7 @@ public class GamePanel extends JPanel implements Runnable {
     public boolean multiplayer = false;  // true = 2 players, false = vs bots
     public entity.Player2 player2;              // Player 2 reference
     public Game_2D.KeyHandler2 keyH2;
+    public SoundManager soundManager;
 
     // ── Game state ──────────────────────────────────────────────────────────
     public enum GameState { MENU, PLAY, GAME_OVER }
@@ -64,6 +67,7 @@ public class GamePanel extends JPanel implements Runnable {
     // ── Construction ────────────────────────────────────────────────────────
 
     public GamePanel() {
+        this.soundManager = new SoundManager();
         this.keyH2    = new KeyHandler2();
         this.keyH     = new KeyHandler();
         this.cChecker = new CollisionChecker(this);
@@ -178,9 +182,18 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void update() {
         if (gameState == GameState.MENU) {
+            // Play opening music when in menu
+            if (!soundManager.isMusicPlaying()) {
+                soundManager.stopMusic();
+                soundManager.playMusic(SoundType.OPENING);
+            }
+
             if (keyH.enterPressed) {
                 keyH.consumeEnterKey();
                 gameState = GameState.PLAY;
+                soundManager.resetWinLoseFlag();
+                soundManager.stopMusic();
+                soundManager.playMusic(SoundType.BGMUSIC);
             }
             return;
         }
@@ -189,36 +202,44 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.consumeRestartKey();
             resetGame();
             gameState = GameState.PLAY;
+            soundManager.resetWinLoseFlag();
+            soundManager.stopMusic();
+            soundManager.playMusic(SoundType.BGMUSIC);
             return;
         }
 
-        if (gameState == GameState.GAME_OVER) return;
+        if (gameState == GameState.GAME_OVER) {
+            if (soundManager.isMusicPlaying()) {
+                soundManager.stopMusic();  // Tắt hẳn bgmusic
+            }
+            // Play win/lose sound only once
+            if (winnerLabel.equals("PLAYER 1") || winnerLabel.equals("PLAYER 2")) {
+                soundManager.playWinOnce();
+            } else if (winnerLabel.startsWith("BOT")) {
+                soundManager.playLoseOnce();
+            } else if (winnerLabel.equals("DRAW")) {
+                soundManager.playLoseOnce();
+            }
+            return;
+        }
 
-        // LUÔN update player 1
+        // Phần update game bình thường
         player.update();
-
-        // Update player 2 nếu có (multiplayer mode)
         if (multiplayer && player2 != null) {
             player2.update();
         }
-
-        // LUÔN update tất cả bots (cả 2 chế độ đều có bot)
         for (int i = 0; i < bots.size(); i++) {
             bots.get(i).update();
         }
-
         bombAlgo.update();
         itemSpawner.update();
         itemSpawner.checkPickup(player);
-
         if (multiplayer && player2 != null) {
             itemSpawner.checkPickup(player2);
         }
-
         for (Bot b : bots) {
             itemSpawner.checkPickup(b);
         }
-
         checkGameOver();
     }
 

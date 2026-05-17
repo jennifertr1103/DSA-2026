@@ -2,6 +2,9 @@ package entity;
 
 import Game_2D.GamePanel;
 import bomb.Bomb;
+import sound.SoundManager;
+import sound.SoundManager.SoundType;
+
 import java.awt.*;
 import java.util.*;
 import java.util.List;
@@ -9,21 +12,23 @@ import java.util.List;
 public class ItemSpawner {
     private GamePanel gp;
     private Random random = new Random();
+    private SoundManager soundManager;
 
     // Thời gian spawn (tick)
     private int spawnTimer = 0;
-    private int spawnInterval = 15 * 60; // 15 giây (có thể random 15-30s)
+    private int spawnInterval = 15 * 60; // 15 giây
 
     private List<Item> activeItems = new ArrayList<>();
 
     public ItemSpawner(GamePanel gp) {
         this.gp = gp;
+        this.soundManager = gp.soundManager;
         resetSpawnTimer();
     }
 
     private void resetSpawnTimer() {
-        // Random từ 15 đến 30 giây
-        spawnInterval =  60+ random.nextInt(15 * 60);
+        // Random từ 10 đến 20 giây
+        spawnInterval = 10 * 60 + random.nextInt(10 * 60);
         spawnTimer = spawnInterval;
     }
 
@@ -45,21 +50,13 @@ public class ItemSpawner {
         }
     }
 
-    /**
-     * Thuật toán spawn item:
-     * 1. Tìm tất cả các ô PATH trống (không có tường, không có item, không có player/bot)
-     * 2. Nếu có ô trống -> chọn random
-     * 3. Nếu không có -> đợi lần sau
-     */
     private void spawnItem() {
         List<int[]> validPositions = new ArrayList<>();
 
         for (int row = 0; row < gp.maxWorldRow; row++) {
             for (int col = 0; col < gp.maxWorldCol; col++) {
-                // Chỉ spawn trên PATH
                 if (gp.tileM.isSolid(col, row)) continue;
 
-                // Không spawn lên bomb
                 boolean hasBomb = false;
                 for (Bomb bomb : gp.bombAlgo.getActiveBombs()) {
                     if (bomb.getCol() == col && bomb.getRow() == row) {
@@ -69,7 +66,6 @@ public class ItemSpawner {
                 }
                 if (hasBomb) continue;
 
-                // Không spawn lên item khác
                 boolean hasItem = false;
                 for (Item item : activeItems) {
                     if (item.getCol() == col && item.getRow() == row) {
@@ -79,8 +75,8 @@ public class ItemSpawner {
                 }
                 if (hasItem) continue;
 
-                // Không spawn lên player hoặc bot
                 if (gp.player.getCol() == col && gp.player.getRow() == row) continue;
+
                 boolean onBot = false;
                 for (Bot b : gp.bots) {
                     if (b.getCol() == col && b.getRow() == row) {
@@ -90,7 +86,6 @@ public class ItemSpawner {
                 }
                 if (onBot) continue;
 
-                // Hợp lệ
                 validPositions.add(new int[]{col, row});
             }
         }
@@ -103,7 +98,6 @@ public class ItemSpawner {
         }
     }
 
-
     public void checkPickup(Entity entity) {
         int col = entity.getCol();
         int row = entity.getRow();
@@ -111,9 +105,20 @@ public class ItemSpawner {
         for (int i = activeItems.size() - 1; i >= 0; i--) {
             Item item = activeItems.get(i);
             if (item.getCol() == col && item.getRow() == row) {
+                // Play pickup sound before applying effect
+                playPickupSound();
                 applyItemEffect(entity, item.getType());
                 activeItems.remove(i);
             }
+        }
+    }
+
+    /**
+     * Play pickup sound effect
+     */
+    private void playPickupSound() {
+        if (soundManager != null) {
+            soundManager.play(SoundType.PICKUP);
         }
     }
 

@@ -16,6 +16,7 @@ public class KeyHandler implements KeyListener {
     public boolean upPress, downPress, leftPress, rightPress;
     public boolean restartPressed, enterPressed;
     public boolean bombKeyPressed;
+    public boolean modeTogglePressed;
 
     // Flag to disable arrow keys in multiplayer mode
     private boolean useArrowKeys = true;  // Default true for single player
@@ -55,11 +56,15 @@ public class KeyHandler implements KeyListener {
 
         // Enter (for menu)
         bindings.put(KeyEvent.VK_ENTER, p -> { if (p) enterPressed = true; });
+
+        // Mode toggle: M
+        bindings.put(KeyEvent.VK_M, p -> { if (p) modeTogglePressed = true; });
     }
 
     public void consumeBombKey() { bombKeyPressed = false; }
     public void consumeRestartKey() { restartPressed = false; }
     public void consumeEnterKey() { enterPressed = false; }
+    public void consumeModeToggleKey() { modeTogglePressed = false; }
 
     private void dispatch(int code, boolean pressed) {
         Consumer<Boolean> b = bindings.get(code);

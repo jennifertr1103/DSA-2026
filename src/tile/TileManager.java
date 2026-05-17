@@ -56,20 +56,42 @@ public class TileManager {
     }
 
     private void generateMap(Random rng) {
-        int cols = gp.maxWorldCol;
-        int rows = gp.maxWorldRow;
+        // 0 = PATH (đường đi)
+        // 2 = HARD_WALL (tường cứng - không phá được)
+        // 3 = BRICK (tường gạch - phá được)
+        // 1 = brick đặt trong map
 
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                if (isBorderOrPillar(col, row, cols, rows)) {
-                    mapTileNum[col][row] = ID_HARD_WALL;
-                } else if (isSpawnProtected(col, row, cols, rows)) {
-                    mapTileNum[col][row] = ID_PATH;
-                } else {
-                    mapTileNum[col][row] = (rng.nextFloat() < 0.45f) ? ID_BRICK : ID_PATH;
-                }
+        int[][] customMap = {
+                {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2},
+                {2,0,3,3,3,3,0,0,0,0,0,0,3,0,0,2},
+                {2,0,2,3,2,0,2,3,2,0,2,0,2,3,2,2},
+                {2,3,0,0,3,3,0,0,0,0,0,0,3,3,3,2},
+                {2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,2},
+                {2,0,0,0,3,0,3,0,0,0,3,0,0,0,3,2},
+                {2,3,2,3,2,0,2,0,2,0,2,3,2,3,2,2},
+                {2,0,3,3,0,3,0,0,0,3,3,0,0,3,3,2},
+                {2,3,2,3,2,3,2,0,2,3,2,3,2,0,2,2},
+                {2,3,0,3,0,0,3,3,3,0,3,0,3,3,0,2},
+                {2,0,2,3,2,0,2,3,2,0,2,3,2,3,0,2},
+                {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2}
+        };
+
+        // Gán vào mapTileNum
+        for (int row = 0; row < gp.maxWorldRow; row++) {
+            for (int col = 0; col < gp.maxWorldCol; col++) {
+                mapTileNum[col][row] = customMap[row][col];
             }
         }
+
+        // (Tùy chọn) Xóa gạch ở vị trí spawn để tránh bị kẹt
+        // Player 1 spawn ở (1,1)
+        if (mapTileNum[1][1] == ID_BRICK) mapTileNum[1][1] = ID_PATH;
+        // Player 2 spawn ở (14,1)
+        if (mapTileNum[14][1] == ID_BRICK) mapTileNum[14][1] = ID_PATH;
+        // Bot 1 spawn ở (1,10)
+        if (mapTileNum[1][10] == ID_BRICK) mapTileNum[1][10] = ID_PATH;
+        // Bot 2 spawn ở (13,10)
+        if (mapTileNum[13][10] == ID_BRICK) mapTileNum[13][10] = ID_PATH;
     }
 
     private boolean isBorderOrPillar(int col, int row, int cols, int rows) {

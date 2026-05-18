@@ -5,6 +5,8 @@ import entity.Bot;
 import entity.Player;
 import entity.ItemSpawner;  // THÊM IMPORT NÀY
 import tile.TileManager;
+import sound.SoundManager;
+import sound.SoundManager.SoundType;
 
 import javax.swing.JPanel;
 import java.awt.Color;
@@ -51,6 +53,7 @@ public class GamePanel extends JPanel implements Runnable {
     public boolean multiplayer = false;  // true = 2 players, false = vs bots
     public entity.Player2 player2;              // Player 2 reference
     public Game_2D.KeyHandler2 keyH2;
+    public SoundManager soundManager;
 
     // ── Game state ──────────────────────────────────────────────────────────
     public enum GameState { MENU, PLAY, GAME_OVER }
@@ -64,6 +67,7 @@ public class GamePanel extends JPanel implements Runnable {
     // ── Construction ────────────────────────────────────────────────────────
 
     public GamePanel() {
+        this.soundManager = new SoundManager();
         this.keyH2    = new KeyHandler2();
         this.keyH     = new KeyHandler();
         this.cChecker = new CollisionChecker(this);
@@ -84,7 +88,6 @@ public class GamePanel extends JPanel implements Runnable {
      * Called at construction and on every restart.
      */
     private void resetGame() {
-        if (tileM != null) tileM.reset();
         bombAlgo = new BombAlgorithm(this);
 
         if (multiplayer) {
@@ -179,14 +182,18 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void update() {
         if (gameState == GameState.MENU) {
-            if (keyH.modeTogglePressed) {
-                keyH.consumeModeToggleKey();
-                multiplayer = !multiplayer;
-                resetGame();
+            // Play opening music when in menu
+            if (!soundManager.isMusicPlaying()) {
+                soundManager.stopMusic();
+                soundManager.playMusic(SoundType.OPENING);
             }
+
             if (keyH.enterPressed) {
                 keyH.consumeEnterKey();
                 gameState = GameState.PLAY;
+                soundManager.resetWinLoseFlag();
+                soundManager.stopMusic();
+                soundManager.playMusic(SoundType.BGMUSIC);
             }
             return;
         }
@@ -195,66 +202,74 @@ public class GamePanel extends JPanel implements Runnable {
             keyH.consumeRestartKey();
             resetGame();
             gameState = GameState.PLAY;
+            soundManager.resetWinLoseFlag();
+            soundManager.stopMusic();
+            soundManager.playMusic(SoundType.BGMUSIC);
             return;
         }
 
-        if (gameState == GameState.GAME_OVER) return;
+        if (gameState == GameState.GAME_OVER) {
+            if (soundManager.isMusicPlaying()) {
+                soundManager.stopMusic();  // Tắt hẳn bgmusic
+            }
+            // Play win/lose sound only once
+            if (winnerLabel.equals("PLAYER 1") || winnerLabel.equals("PLAYER 2")) {
+                soundManager.playWinOnce();
+            } else if (winnerLabel.startsWith("BOT")) {
+                soundManager.playLoseOnce();
+            } else if (winnerLabel.equals("DRAW")) {
+                soundManager.playLoseOnce();
+            }
+            return;
+        }
 
-        // LUÔN update player 1
+        // Phần update game bình thường
         player.update();
-
-        // Update player 2 nếu có (multiplayer mode)
         if (multiplayer && player2 != null) {
             player2.update();
         }
-
-        // LUÔN update tất cả bots (cả 2 chế độ đều có bot)
         for (int i = 0; i < bots.size(); i++) {
             bots.get(i).update();
         }
-
         bombAlgo.update();
         itemSpawner.update();
         itemSpawner.checkPickup(player);
-
         if (multiplayer && player2 != null) {
             itemSpawner.checkPickup(player2);
         }
-
         for (Bot b : bots) {
             itemSpawner.checkPickup(b);
         }
-
         checkGameOver();
     }
 
-    private void checkGameOver() {
-        int aliveCount = 0;
-        String lastSurvivor = "";
+private void checkGameOver() {
+    int aliveCount = 0;
+    String lastSurvivor = "";
 
-        if (player.alive) {
+    if (player.alive) {
+        aliveCount++;
+        lastSurvivor = "PLAYER 1";
+    }
+
+    if (multiplayer && player2 != null && player2.alive) {
+        aliveCount++;
+        lastSurvivor = "PLAYER 2";
+    }
+
+    // Bot luôn được tính (cả 2 chế độ)
+    for (int i = 0; i < bots.size(); i++) {
+        if (bots.get(i).alive) {
             aliveCount++;
-            lastSurvivor = "PLAYER 1";
-        }
-
-        if (multiplayer && player2 != null && player2.alive) {
-            aliveCount++;
-            lastSurvivor = "PLAYER 2";
-        }
-
-        // Bot luôn được tính (cả 2 chế độ)
-        for (int i = 0; i < bots.size(); i++) {
-            if (bots.get(i).alive) {
-                aliveCount++;
-                lastSurvivor = "BOT " + (i + 1);
-            }
-        }
-
-        if (aliveCount <= 1) {
-            gameState = GameState.GAME_OVER;
-            winnerLabel = (aliveCount == 0) ? "DRAW" : lastSurvivor;
+            lastSurvivor = "BOT " + (i + 1);
         }
     }
+
+    if (aliveCount <= 1) {
+        gameState = GameState.GAME_OVER;
+        winnerLabel = aliveCount == 0 ? "DRAW" : lastSurvivor;
+    }
+}
     // ── Rendering ────────────────────────────────────────────────────────────
 
     @Override
@@ -316,16 +331,9 @@ public class GamePanel extends JPanel implements Runnable {
         g2.setColor(new Color(150, 150, 165));
         g2.drawString(sub, (width - fm.stringWidth(sub)) / 2, y + 60);
 
-        // Mode display
-        g2.setFont(new Font("SansSerif", Font.BOLD, 22));
-        String modeText = "MODE: " + (multiplayer ? "2 PLAYERS vs 2 BOTS" : "1 PLAYER vs 3 BOTS");
-        fm = g2.getFontMetrics();
-        g2.setColor(new Color(230, 205, 60));
-        g2.drawString(modeText, (width - fm.stringWidth(modeText)) / 2, y + 110);
-
         // Instructions
         g2.setFont(new Font("SansSerif", Font.PLAIN, 24));
-        String start = "Press ENTER to Start | M to Toggle Mode";
+        String start = "Press ENTER to Start";
         fm = g2.getFontMetrics();
         if ((System.currentTimeMillis() / 500) % 2 == 0) {
             g2.setColor(Color.WHITE);
@@ -354,50 +362,50 @@ public class GamePanel extends JPanel implements Runnable {
 
     // ── HUD ──────────────────────────────────────────────────────────────────
 
-    private void drawHUD(Graphics2D g2) {
-        int hudY = height;
+private void drawHUD(Graphics2D g2) {
+    int hudY = height;
 
-        g2.setColor(new Color(32, 36, 42));
-        g2.fillRect(0, hudY, width, HUD_HEIGHT);
-        g2.setColor(new Color(80, 90, 110));
-        g2.drawLine(0, hudY, width, hudY);
+    g2.setColor(new Color(32, 36, 42));
+    g2.fillRect(0, hudY, width, HUD_HEIGHT);
+    g2.setColor(new Color(80, 90, 110));
+    g2.drawLine(0, hudY, width, hudY);
 
-        Font labelFont = new Font("SansSerif", Font.BOLD, 11);
-        g2.setFont(labelFont);
+    Font labelFont = new Font("SansSerif", Font.BOLD, 11);
+    g2.setFont(labelFont);
 
-        // Player 1 Status
-        drawEntityStatus(g2, 20, hudY + 15, "P1", player.life, player.alive, new Color(255, 140, 170));
+    // Player 1 Status
+    drawEntityStatus(g2, 20, hudY + 15, "P1", player.life, player.alive, new Color(255, 140, 170));
 
-        if (multiplayer && player2 != null) {
-            // Player 2 Status
-            drawEntityStatus(g2, 150, hudY + 15, "P2", player2.life, player2.alive, new Color(100, 180, 255));
+    if (multiplayer && player2 != null) {
+        // Player 2 Status
+        drawEntityStatus(g2, 150, hudY + 15, "P2", player2.life, player2.alive, new Color(100, 180, 255));
 
-            // Bots Status (vị trí dịch sang phải)
-            for (int i = 0; i < bots.size(); i++) {
-                Bot b = bots.get(i);
-                int bx = 280 + i * 150;
-                drawEntityStatus(g2, bx, hudY + 15, "BOT " + (i + 1), b.life, b.alive, new Color(180, 70, 100));
-            }
-
-            String mode = "2P + 2 BOTS";
-            g2.setColor(new Color(150, 150, 150));
-            g2.drawString(mode, width - 120, hudY + 25);
-        } else {
-            // Bots Status
-            for (int i = 0; i < bots.size(); i++) {
-                Bot b = bots.get(i);
-                int bx = 200 + i * 150;
-                drawEntityStatus(g2, bx, hudY + 15, "BOT " + (i + 1), b.life, b.alive, new Color(180, 70, 100));
-            }
-
-            String mode = "1P + 3 BOTS";
-            g2.setColor(new Color(150, 150, 150));
-            g2.drawString(mode, width - 100, hudY + 25);
+        // Bots Status (vị trí dịch sang phải)
+        for (int i = 0; i < bots.size(); i++) {
+            Bot b = bots.get(i);
+            int bx = 280 + i * 150;
+            drawEntityStatus(g2, bx, hudY + 15, "BOT " + (i + 1), b.life, b.alive, new Color(180, 70, 100));
         }
+
+        String mode = "2P + 2 BOTS";
+        g2.setColor(new Color(150, 150, 150));
+        g2.drawString(mode, width - 120, hudY + 25);
+    } else {
+        // Bots Status
+        for (int i = 0; i < bots.size(); i++) {
+            Bot b = bots.get(i);
+            int bx = 200 + i * 150;
+            drawEntityStatus(g2, bx, hudY + 15, "BOT " + (i + 1), b.life, b.alive, new Color(180, 70, 100));
+        }
+
+        String mode = "1P + 3 BOTS";
+        g2.setColor(new Color(150, 150, 150));
+        g2.drawString(mode, width - 100, hudY + 25);
     }
+}
 
 
-    // ── Game-over overlay ─────────────────────────────────────────────────────
+// ── Game-over overlay ─────────────────────────────────────────────────────
 
     private void drawGameOver(Graphics2D g2) {
         // Dim the arena

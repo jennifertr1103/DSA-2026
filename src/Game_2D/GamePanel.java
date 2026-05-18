@@ -26,20 +26,26 @@ public class GamePanel extends JPanel implements Runnable {
     public static final int ORIGINAL_TILE_SIZE = 16;
     public static final int SCALE              = 2;
     public static final int EXTRA_SCALE        = 2;
-    public final int tileSize = ORIGINAL_TILE_SIZE * SCALE * EXTRA_SCALE; // 64 px
+    public static final int TILE_SIZE          = ORIGINAL_TILE_SIZE * SCALE * EXTRA_SCALE; // 64 px
 
-    public final int maxColumn    = 16;
-    public final int maxRow       = 12;
-    public final int width        = tileSize * maxColumn;   // 1024
-    public final int height       = tileSize * maxRow;      //  768
+    public static final int MAX_COLUMN    = 16;
+    public static final int MAX_ROW       = 12;
+    public static final int WIDTH         = TILE_SIZE * MAX_COLUMN;   // 1024
+    public static final int HEIGHT        = TILE_SIZE * MAX_ROW;      //  768
+
+    public final int tileSize = TILE_SIZE;
+    public final int width = WIDTH;
+    public final int height = HEIGHT;
+    public final int maxColumn = MAX_COLUMN;
+    public final int maxRow = MAX_ROW;
 
     public final int maxWorldCol  = 16;
     public final int maxWorldRow  = 12;
-    public final int worldWidth   = tileSize * maxWorldCol;
-    public final int worldHeight  = tileSize * maxWorldRow;
+    public final int worldWidth   = TILE_SIZE * maxWorldCol;
+    public final int worldHeight  = TILE_SIZE * maxWorldRow;
 
     private static final int FPS        = 60;
-    private static final int HUD_HEIGHT = 70; // Tăng lên 70 để chứa speed boost bar
+    public static final int HUD_HEIGHT = 70; // Tăng lên 70 để chứa speed boost bar
 
     // ── Subsystems ──────────────────────────────────────────────────────────
     public final TileManager    tileM;
@@ -54,10 +60,11 @@ public class GamePanel extends JPanel implements Runnable {
     public entity.Player2 player2;              // Player 2 reference
     public Game_2D.KeyHandler2 keyH2;
     public SoundManager soundManager;
+    private final Main main;
 
     // ── Game state ──────────────────────────────────────────────────────────
-    public enum GameState { MENU, PLAY, GAME_OVER }
-    private GameState gameState = GameState.MENU;
+    public enum GameState { PLAY, GAME_OVER }
+    private GameState gameState = GameState.PLAY;
     private String  winnerLabel = "";
 
     // ── Thread ──────────────────────────────────────────────────────────────
@@ -66,8 +73,9 @@ public class GamePanel extends JPanel implements Runnable {
 
     // ── Construction ────────────────────────────────────────────────────────
 
-    public GamePanel() {
-        this.soundManager = new SoundManager();
+    public GamePanel(Main main) {
+        this.main = main;
+        this.soundManager = main.getSoundManager();
         this.keyH2    = new KeyHandler2();
         this.keyH     = new KeyHandler();
         this.cChecker = new CollisionChecker(this);
@@ -75,7 +83,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         resetGame();   // initialises player, bots, bombAlgo, itemSpawner
 
-        setPreferredSize(new Dimension(width, height + HUD_HEIGHT));
+        setPreferredSize(new Dimension(WIDTH, HEIGHT + HUD_HEIGHT));
         setBackground(new Color(12, 12, 16));
         setDoubleBuffered(true);
         addKeyListener(keyH2);
@@ -87,7 +95,7 @@ public class GamePanel extends JPanel implements Runnable {
      * Creates fresh player / bots / bombAlgo / itemSpawner instances.
      * Called at construction and on every restart.
      */
-    private void resetGame() {
+    public void resetGame() {
         bombAlgo = new BombAlgorithm(this);
 
         if (multiplayer) {
@@ -140,6 +148,7 @@ public class GamePanel extends JPanel implements Runnable {
 
         itemSpawner = new ItemSpawner(this);
         winnerLabel = "";
+        gameState = GameState.PLAY;
     }
 
     // ── Thread management ────────────────────────────────────────────────────
@@ -153,6 +162,11 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void stopGameThread() {
         running = false;
+        try {
+            if (gameThread != null) gameThread.join(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // ── Game loop (fixed time-step, 60 fps) ──────────────────────────────────
@@ -181,23 +195,6 @@ public class GamePanel extends JPanel implements Runnable {
     // ── Update ───────────────────────────────────────────────────────────────
 
     public void update() {
-        if (gameState == GameState.MENU) {
-            // Play opening music when in menu
-            if (!soundManager.isMusicPlaying()) {
-                soundManager.stopMusic();
-                soundManager.playMusic(SoundType.OPENING);
-            }
-
-            if (keyH.enterPressed) {
-                keyH.consumeEnterKey();
-                gameState = GameState.PLAY;
-                soundManager.resetWinLoseFlag();
-                soundManager.stopMusic();
-                soundManager.playMusic(SoundType.BGMUSIC);
-            }
-            return;
-        }
-
         if (keyH.restartPressed) {
             keyH.consumeRestartKey();
             resetGame();
@@ -219,6 +216,11 @@ public class GamePanel extends JPanel implements Runnable {
                 soundManager.playLoseOnce();
             } else if (winnerLabel.equals("DRAW")) {
                 soundManager.playLoseOnce();
+            }
+
+            if (keyH.enterPressed) {
+                keyH.consumeEnterKey();
+                main.showMenu();
             }
             return;
         }
@@ -279,11 +281,6 @@ private void checkGameOver() {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        if (gameState == GameState.MENU) {
-            drawMenu(g2);
-            return;
-        }
-
         tileM.draw(g2);
         bombAlgo.draw(g2);
         player.draw(g2);
@@ -306,47 +303,6 @@ private void checkGameOver() {
 
         if (gameState == GameState.GAME_OVER) drawGameOver(g2);
     }
-    private void drawMenu(Graphics2D g2) {
-        // Menu background
-        g2.setColor(new Color(12, 12, 16));
-        g2.fillRect(0, 0, width, height + HUD_HEIGHT);
-
-        // Title
-        g2.setFont(new Font("SansSerif", Font.BOLD, 80));
-        String title = "BOM IT";
-        FontMetrics fm = g2.getFontMetrics();
-        int x = (width - fm.stringWidth(title)) / 2;
-        int y = height / 3;
-
-        // Title shadow
-        g2.setColor(new Color(255, 100, 130, 100));
-        g2.drawString(title, x + 5, y + 5);
-        g2.setColor(new Color(255, 200, 220));
-        g2.drawString(title, x, y);
-
-        // Subtitle
-        g2.setFont(new Font("SansSerif", Font.BOLD, 30));
-        String sub = "4 PLAYERS BATTLE";
-        fm = g2.getFontMetrics();
-        g2.setColor(new Color(150, 150, 165));
-        g2.drawString(sub, (width - fm.stringWidth(sub)) / 2, y + 60);
-
-        // Instructions
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 24));
-        String start = "Press ENTER to Start";
-        fm = g2.getFontMetrics();
-        if ((System.currentTimeMillis() / 500) % 2 == 0) {
-            g2.setColor(Color.WHITE);
-            g2.drawString(start, (width - fm.stringWidth(start)) / 2, height * 2 / 3);
-        }
-
-        // Controls hint
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        String controls = "WASD/Arrows: Move | SPACE: Bomb | R: Restart";
-        fm = g2.getFontMetrics();
-        g2.setColor(new Color(100, 100, 110));
-        g2.drawString(controls, (width - fm.stringWidth(controls)) / 2, height * 2 / 3 + 100);
-    }
 
     private void drawEntityStatus(Graphics2D g2, int x, int y, String label, int life, boolean alive, Color color) {
         if (!alive) g2.setColor(new Color(100, 100, 110));
@@ -363,12 +319,12 @@ private void checkGameOver() {
     // ── HUD ──────────────────────────────────────────────────────────────────
 
 private void drawHUD(Graphics2D g2) {
-    int hudY = height;
+    int hudY = HEIGHT;
 
     g2.setColor(new Color(32, 36, 42));
-    g2.fillRect(0, hudY, width, HUD_HEIGHT);
+    g2.fillRect(0, hudY, WIDTH, HUD_HEIGHT);
     g2.setColor(new Color(80, 90, 110));
-    g2.drawLine(0, hudY, width, hudY);
+    g2.drawLine(0, hudY, WIDTH, hudY);
 
     Font labelFont = new Font("SansSerif", Font.BOLD, 11);
     g2.setFont(labelFont);
@@ -389,7 +345,7 @@ private void drawHUD(Graphics2D g2) {
 
         String mode = "2P + 2 BOTS";
         g2.setColor(new Color(150, 150, 150));
-        g2.drawString(mode, width - 120, hudY + 25);
+        g2.drawString(mode, WIDTH - 120, hudY + 25);
     } else {
         // Bots Status
         for (int i = 0; i < bots.size(); i++) {
@@ -400,7 +356,7 @@ private void drawHUD(Graphics2D g2) {
 
         String mode = "1P + 3 BOTS";
         g2.setColor(new Color(150, 150, 150));
-        g2.drawString(mode, width - 100, hudY + 25);
+        g2.drawString(mode, WIDTH - 100, hudY + 25);
     }
 }
 
@@ -410,7 +366,7 @@ private void drawHUD(Graphics2D g2) {
     private void drawGameOver(Graphics2D g2) {
         // Dim the arena
         g2.setColor(new Color(0, 0, 0, 165));
-        g2.fillRect(0, 0, width, height);
+        g2.fillRect(0, 0, WIDTH, HEIGHT);
 
         // Winner text
         String line = winnerLabel.equals("DRAW") ? "DRAW!" : winnerLabel + " WINS!";
@@ -420,20 +376,20 @@ private void drawHUD(Graphics2D g2) {
 
         // Shadow
         g2.setColor(new Color(0, 0, 0, 200));
-        g2.drawString(line, (width - fm.stringWidth(line)) / 2 + 3, height / 2 + 3);
+        g2.drawString(line, (WIDTH - fm.stringWidth(line)) / 2 + 3, HEIGHT / 2 + 3);
 
         // Coloured text
         Color textCol = winnerLabel.startsWith("PLAYER") ? new Color(255, 140, 170)
                 : winnerLabel.startsWith("BOT")    ? new Color(180, 70, 100)
                 :                                new Color(230, 205, 60);
         g2.setColor(textCol);
-        g2.drawString(line, (width - fm.stringWidth(line)) / 2, height / 2);
+        g2.drawString(line, (WIDTH - fm.stringWidth(line)) / 2, HEIGHT / 2);
 
         // Sub-line
         g2.setFont(new Font("SansSerif", Font.PLAIN, 20));
         fm = g2.getFontMetrics();
-        String sub = "Press  R  to play again";
+        String sub = "Press  R  to play again | ENTER to Menu";
         g2.setColor(new Color(210, 210, 210));
-        g2.drawString(sub, (width - fm.stringWidth(sub)) / 2, height / 2 + 52);
+        g2.drawString(sub, (WIDTH - fm.stringWidth(sub)) / 2, HEIGHT / 2 + 52);
     }
 }

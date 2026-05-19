@@ -102,14 +102,14 @@ public class ModeSelectionPanel extends JPanel {
                 int targetWidth = (int) (targetHeight * ratio);
                 Image scaledBack = backImg.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
                 backBtn.setIcon(new ImageIcon(scaledBack));
-                backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - targetHeight - 20, targetWidth, targetHeight);
+                backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - targetHeight - 60, targetWidth, targetHeight);
             } else {
                 backBtn.setText("BACK");
-                backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - 70, 100, 50);
+                backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - 110, 100, 50);
             }
         } catch (Exception e) {
             backBtn.setText("BACK");
-            backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - 70, 100, 50);
+            backBtn.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - 110, 100, 50);
         }
 
         backBtn.setFocusPainted(false);

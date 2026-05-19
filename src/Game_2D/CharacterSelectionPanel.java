@@ -19,8 +19,9 @@ public class CharacterSelectionPanel extends JPanel {
     private String p1Model, p2Model;
     private CharacterTier p1Tier, p2Tier;
     
-    private JLabel titleLabel;
+    private JLabel playerTitle;
     private JPanel cardPanel;
+    private ImageIcon p1TitleIcon, p2TitleIcon;
     
     private static class CharacterInfo {
         String name;
@@ -67,11 +68,17 @@ public class CharacterSelectionPanel extends JPanel {
     }
 
     private void initComponents() {
-        titleLabel = new JLabel("PLAYER 1: SELECT YOUR CHARACTER", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 36));
-        titleLabel.setForeground(Color.WHITE);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(50, 0, 30, 0));
-        add(titleLabel, BorderLayout.NORTH);
+        // Load title icons
+        p1TitleIcon = loadTitleIcon("/res/button/c1.png");
+        p2TitleIcon = loadTitleIcon("/res/button/c2.png");
+
+        playerTitle = new JLabel(p1TitleIcon);
+        playerTitle.setBorder(BorderFactory.createEmptyBorder(30, 10, 10, 0));
+        
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topPanel.setOpaque(false);
+        topPanel.add(playerTitle);
+        add(topPanel, BorderLayout.NORTH);
 
         cardPanel = new JPanel(new GridLayout(2, 4, 20, 20));
         cardPanel.setOpaque(false);
@@ -98,6 +105,7 @@ public class CharacterSelectionPanel extends JPanel {
         
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottomPanel.setOpaque(false);
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 40, 0)); // Move up by 40px
         bottomPanel.add(backBtn);
         add(bottomPanel, BorderLayout.SOUTH);
     }
@@ -159,8 +167,30 @@ public class CharacterSelectionPanel extends JPanel {
     }
 
     private void updateUIForPlayer() {
-        titleLabel.setText("PLAYER " + currentPlayerSelecting + ": SELECT YOUR CHARACTER");
+        if (currentPlayerSelecting == 1) {
+            playerTitle.setIcon(p1TitleIcon);
+        } else {
+            playerTitle.setIcon(p2TitleIcon);
+        }
         repaint();
+    }
+
+    private ImageIcon loadTitleIcon(String path) {
+        try {
+            java.net.URL imgURL = getClass().getResource(path);
+            if (imgURL != null) {
+                BufferedImage img = ImageIO.read(imgURL);
+                // Scale title image to a reasonable size
+                int targetHeight = 60;
+                double ratio = (double) img.getWidth() / img.getHeight();
+                int targetWidth = (int) (targetHeight * ratio);
+                Image scaledImg = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+                return new ImageIcon(scaledImg);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load title icon: " + path);
+        }
+        return null;
     }
 
     private void finishSelection() {

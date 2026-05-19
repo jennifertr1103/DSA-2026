@@ -63,8 +63,8 @@ public class SelectionPanel extends JPanel {
         if (backButton != null) {
             int bw = backButton.getPreferredSize().width;
             int bh = backButton.getPreferredSize().height;
-            // Place at bottom left
-            backButton.setBounds(20, screenHeight - bh - 20, bw, bh);
+            // Place at bottom left, moved up to offset 60
+            backButton.setBounds(20, screenHeight - bh - 60, bw, bh);
             add(backButton);
             backButton.addActionListener(e -> main.showMenu());
         }

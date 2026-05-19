@@ -26,7 +26,7 @@ public class InstructionPanel extends JPanel {
         if (backButton != null) {
             int bw = backButton.getPreferredSize().width;
             int bh = backButton.getPreferredSize().height;
-            backButton.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - bh - 20, bw, bh);
+            backButton.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - bh - 60, bw, bh);
             add(backButton);
             backButton.addActionListener(e -> main.showMenu());
         }

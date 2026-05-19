@@ -36,14 +36,14 @@ public class TileManager {
     private java.awt.image.BufferedImage sushiImage;
 
     // ── DYNAMIC DIMENSIONS ───────────────────────────────────────────
-    public int getTileSize() { return (currentMapType == MapType.IMAGE) ? 48 : 64; }
-    public int getMaxCol()   { return (currentMapType == MapType.IMAGE) ? 21 : 16; }
-    public int getMaxRow()   { return (currentMapType == MapType.IMAGE) ? 16 : 12; }
+    public int getTileSize() { return 64; }
+    public int getMaxCol()   { return 16; }
+    public int getMaxRow()   { return 12; }
 
     // ── State ────────────────────────────────────────────────────────────────
     private final GamePanel gp;
     public Tile[] tile;
-    public int[][] mapTileNum; // Sẽ được cấp phát lại khi đổi map
+    public int[][] mapTileNum; // Sẽ được phát lại khi đổi map
 
     // ── Construction ─────────────────────────────────────────────────────────
     public TileManager(GamePanel gp) {
@@ -56,8 +56,8 @@ public class TileManager {
 
     private void loadMapAssets() {
         try {
-            // Load ảnh full map mới (map2.png)
-            fullMapImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/map2.png"));
+            // Load ảnh full map
+            fullMapImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/map chơi 1.png"));
             // Load ảnh sushi cho gạch
             sushiImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/sushi.png"));
         } catch (Exception e) {
@@ -94,7 +94,7 @@ public class TileManager {
                 }
             }
         } else {
-            // Map 2 (IMAGE): Tự động tạo lưới 48x48 (21x16 ô)
+            // Map 2 (IMAGE)
             Random rng = new Random();
             for (int r = 0; r < rows; r++) {
                 for (int c = 0; c < cols; c++) {

@@ -96,7 +96,7 @@ public abstract class Entity implements Updatable, Renderable {
      * Loads character sprites based on their tier.
      * folderName: The folder inside /res/player/ containing the images (e.g., "Model 1").
      */
-    protected void loadSprites(String folderName, CharacterTier tier) {
+    public void loadSprites(String folderName, CharacterTier tier) {
         this.tier = tier;
         String basePath = "/res/player/" + folderName + "/";
         

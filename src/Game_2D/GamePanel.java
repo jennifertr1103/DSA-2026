@@ -60,6 +60,22 @@ public class GamePanel extends JPanel implements Runnable {
     public SoundManager soundManager;
     private final Main main;
 
+    // Character selection
+    private String p1Model = "Model 1";
+    private entity.Entity.CharacterTier p1Tier = entity.Entity.CharacterTier.SSR;
+    private String p2Model = "Model 2";
+    private entity.Entity.CharacterTier p2Tier = entity.Entity.CharacterTier.SSR;
+
+    public void setP1Character(String model, entity.Entity.CharacterTier tier) {
+        this.p1Model = model;
+        this.p1Tier = tier;
+    }
+
+    public void setP2Character(String model, entity.Entity.CharacterTier tier) {
+        this.p2Model = model;
+        this.p2Tier = tier;
+    }
+
     // ── Game state ──────────────────────────────────────────────────────────
     public enum GameState { PLAY, GAME_OVER }
     private GameState gameState = GameState.PLAY;
@@ -111,10 +127,12 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         player = new Player(this, keyH);
+        player.loadSprites(p1Model, p1Tier);
         bombAlgo.registerDestructible(player);
 
         if (multiplayer) {
             player2 = new entity.Player2(this, keyH2);
+            player2.loadSprites(p2Model, p2Tier);
             bombAlgo.registerDestructible(player2);
 
             bots.clear();

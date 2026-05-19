@@ -21,15 +21,15 @@ public class SelectionPanel extends JPanel {
 
         try {
             background = ImageIO.read(getClass().getResource("/res/UI/StartPanel.png"));
-        } catch (IOException | NullPointerException e) {
-            System.err.println("Could not load BG1.png");
+        } catch (Exception e) {
+            System.err.println("Could not load StartPanel.png");
         }
 
         // Create buttons
         playButton = createImageButton("/res/button/play.png", 150);
         gachaButton = createImageButton("/res/button/gacha.png", 150);
         backButton = createImageButton("/res/button/back.png", 60);
-        
+
         // Nút đổi Map (dùng text tạm thời vì chưa có image)
         mapButton = new JButton("MAP: CLASSIC");
         mapButton.setFont(new Font("Arial", Font.BOLD, 20));
@@ -37,9 +37,9 @@ public class SelectionPanel extends JPanel {
         mapButton.setForeground(Color.WHITE);
         mapButton.setFocusPainted(false);
 
-        int centerX = GamePanel.WIDTH / 2;
-        int screenHeight = GamePanel.HEIGHT + GamePanel.HUD_HEIGHT;
-        
+        int centerX = Game_2D.GamePanel.WIDTH / 2;
+        int screenHeight = Game_2D.GamePanel.HEIGHT + GamePanel.HUD_HEIGHT;
+
         int buttonHeight = 150;
         int gap = 15;
         int startY = (screenHeight - (buttonHeight * 2 + gap)) / 2 + 50;
@@ -81,14 +81,14 @@ public class SelectionPanel extends JPanel {
 
                     Image scaledImg = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
                     ImageIcon icon = new ImageIcon(scaledImg);
-                    
+
                     JButton btn = new JButton(icon);
                     btn.setPreferredSize(new Dimension(targetWidth, targetHeight));
                     btn.setBorder(BorderFactory.createEmptyBorder());
                     btn.setContentAreaFilled(false);
                     btn.setFocusPainted(false);
                     btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    
+
                     return btn;
                 }
             }

@@ -177,16 +177,18 @@ public abstract class Entity implements Updatable, Renderable {
                 // Tỉ lệ gốc của ảnh
                 double imgRatio = (double) frame.getWidth() / frame.getHeight();
                 
-                // Tăng kích thước cơ bản lên 1.5 lần ô gạch
+                // Tăng kích thước cơ bản lên
                 double scaleMult = 1.5;
-                
-                // Bù đắp thị giác: Khi đi ngang (thân mỏng), ta phóng to thêm 15% để nhân vật trông đỡ nhỏ
+
                 if (direction == Direction.LEFT || direction == Direction.RIGHT) {
-                    scaleMult *= 1.15;
+                    scaleMult *= 1.05;
                 }
 
+                // Độ giãn bề ngang
+                double widthStretch = 1.15;
+
                 int drawHeight = (int) (tileSize * scaleMult); 
-                int drawWidth = (int) (drawHeight * imgRatio);
+                int drawWidth = (int) (drawHeight * imgRatio * widthStretch);
                 
                 // Căn giữa ngang và đặt chân nhân vật chạm đáy ô gạch
                 int x = getScreenX() + (tileSize - drawWidth) / 2;

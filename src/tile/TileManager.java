@@ -33,6 +33,7 @@ public class TileManager {
     public enum MapType { CLASSIC, IMAGE }
     private MapType currentMapType = MapType.CLASSIC;
     private java.awt.image.BufferedImage fullMapImage;
+    private java.awt.image.BufferedImage sushiImage;
 
     // ── DYNAMIC DIMENSIONS ───────────────────────────────────────────
     public int getTileSize() { return (currentMapType == MapType.IMAGE) ? 48 : 64; }
@@ -57,8 +58,10 @@ public class TileManager {
         try {
             // Load ảnh full map mới (map2.png)
             fullMapImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/map2.png"));
+            // Load ảnh sushi cho gạch
+            sushiImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/sushi.png"));
         } catch (Exception e) {
-            System.err.println("Could not load full map image: " + e.getMessage());
+            System.err.println("Could not load map assets: " + e.getMessage());
         }
     }
 
@@ -81,7 +84,7 @@ public class TileManager {
                     {2,3,2,3,2,0,2,0,2,0,2,3,2,3,2,2},
                     {2,0,3,3,0,3,0,0,0,3,3,0,0,3,3,2},
                     {2,3,2,3,2,3,2,0,2,3,2,3,2,0,2,2},
-                    {2,3,0,3,0,0,3,3,3,0,3,0,3,3,0,2},
+                    {2,3,0,3,0,0,3,3,3,0,3,0,3,0,0,2},
                     {2,0,2,3,2,0,2,3,2,0,2,3,2,3,0,2},
                     {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2}
             };
@@ -120,6 +123,12 @@ public class TileManager {
         mapTileNum[mc-2][1] = ID_PATH;
         mapTileNum[1][mr-2] = ID_PATH;
         mapTileNum[mc-2][mr-2] = ID_PATH;
+        
+        // Additional protection for adjacent cells at Bot 3 corner (14, 10)
+        if (mc >= 16 && mr >= 12) {
+            mapTileNum[13][10] = ID_PATH;
+            mapTileNum[14][9] = ID_PATH;
+        }
     }
 
     public void reset() {
@@ -174,14 +183,14 @@ public class TileManager {
 
     // ── Rendering ────────────────────────────────────────────────────────────
     public void draw(Graphics2D g2) {
+        int t = getTileSize();
         if (currentMapType == MapType.IMAGE && fullMapImage != null) {
             // Vẽ ảnh full map làm nền
-            g2.drawImage(fullMapImage, 0, 0, gp.getWorldWidth(), gp.getWorldHeight(), null);
+            g2.drawImage(fullMapImage, 0, 0, getMaxCol() * t, getMaxRow() * t, null);
             
             // Vẽ vật cản đè lên ảnh nền
-            int t = gp.tileSize;
-            for (int row = 0; row < gp.getMaxWorldRow(); row++) {
-                for (int col = 0; col < gp.getMaxWorldCol(); col++) {
+            for (int row = 0; row < getMaxRow(); row++) {
+                for (int col = 0; col < getMaxCol(); col++) {
                     int id = mapTileNum[col][row];
                     // Vẽ cả tường cứng (HARD_WALL) và gạch phá được (BRICK)
                     if (id == ID_HARD_WALL || id == ID_BRICK) {
@@ -191,9 +200,8 @@ public class TileManager {
             }
         } else {
             // Vẽ map classic (từng ô)
-            int t = gp.tileSize;
-            for (int row = 0; row < gp.getMaxWorldRow(); row++) {
-                for (int col = 0; col < gp.getMaxWorldCol(); col++) {
+            for (int row = 0; row < getMaxRow(); row++) {
+                for (int col = 0; col < getMaxCol(); col++) {
                     drawTile(g2, col, row, col * t, row * t, t);
                 }
             }
@@ -247,13 +255,13 @@ public class TileManager {
 
             case BRICK_WALL:
                 if (currentMapType == MapType.IMAGE) {
-                    // Vẽ gạch kiểu tường đá thay vì hoa khi dùng Image Map
-                    g2.setColor(new Color(120, 100, 80)); // Màu gạch nâu
-                    g2.fillRect(x + 2, y + 2, t - 4, t - 4);
-                    g2.setColor(new Color(150, 130, 110));
-                    g2.drawRect(x + 2, y + 2, t - 4, t - 4);
-                    // Chi tiết viên gạch
-                    g2.drawLine(x + 2, y + t/2, x + t - 3, y + t/2);
+                    if (sushiImage != null) {
+                        g2.drawImage(sushiImage, x, y, t, t, null);
+                    } else {
+                        // Fallback
+                        g2.setColor(new Color(120, 100, 80));
+                        g2.fillRect(x + 2, y + 2, t - 4, t - 4);
+                    }
                 } else {
                     // Vẽ bông hoa (giữ nguyên cho map classic nếu muốn)
                     drawFlower(g2, x, y, t);

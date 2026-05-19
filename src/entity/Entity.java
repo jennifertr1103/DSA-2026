@@ -61,7 +61,7 @@ public abstract class Entity implements Updatable, Renderable {
                 life  = 0;
                 alive = false;
             } else {
-                invincible        = true;
+                invincible = true;
                 invincibleCounter = 0;
             }
         }
@@ -73,7 +73,7 @@ public abstract class Entity implements Updatable, Renderable {
         if (invincible) {
             invincibleCounter++;
             if (invincibleCounter >= INVINCIBLE_TICKS) {
-                invincible        = false;
+                invincible = false;
                 invincibleCounter = 0;
             }
         }
@@ -85,12 +85,20 @@ public abstract class Entity implements Updatable, Renderable {
     public Queue<Bomb> getBombQueue() { return bombQueue; }
     public int getMaxBombs() { return maxBombs; }
 
+    public void setCollisionSize(int width, int height) {
+        this.solidArea.width = width;
+        this.solidArea.height = height;
+        // Keep it centered relative to the entity visual
+        this.solidArea.x = (getDrawSize() - width) / 2;
+        this.solidArea.y = (getDrawSize() - height) / 2 + 5; // offset slightly down
+    }
+
     public Rectangle getWorldHitbox() {
         return new Rectangle(worldX + solidArea.x, worldY + solidArea.y,
                              solidArea.width, solidArea.height);
     }
 
-    // ── Sprite Loading (NEW TIERED SYSTEM) ────────────────────────────────────
+    // ── Sprite Loading ────────────────────────────────────
 
     /**
      * Loads character sprites based on their tier.
@@ -188,8 +196,6 @@ public abstract class Entity implements Updatable, Renderable {
                 return;
             }
         }
-        
-        // Cần override ở class con nếu muốn fallback
     }
 
     public abstract int getScreenX();

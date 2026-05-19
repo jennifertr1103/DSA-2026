@@ -36,15 +36,12 @@ public class Player extends Entity implements Destructible {
         this.gp   = gp;
         this.keyH = keyH;
 
-        solidArea.x      = SOLID_AREA_X;
-        solidArea.y      = SOLID_AREA_Y;
-        solidArea.width  = SOLID_AREA_W;
-        solidArea.height = SOLID_AREA_H;
-
         setDefaultValues();
         
-        // Thử load ảnh (Giả sử player 1 là SSR, folder tên "Model 1")
-        // Nếu không có ảnh, nó sẽ tự động fallback về vẽ hình My Melody.
+        // Dynamic collision size (approx 75% of tile size to move easily)
+        int ts = gp.tileM.getTileSize();
+        setCollisionSize((int)(ts * 0.75), (int)(ts * 0.65));
+
         loadSprites("Model 1", CharacterTier.SSR);
     }
 

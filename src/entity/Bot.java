@@ -63,7 +63,15 @@ public class Bot extends Entity implements Destructible {
         speed     = DEFAULT_SPEED;
         life      = 3;
         direction = Direction.DOWN;
-        solidArea.setBounds(8, 8, ts - 16, ts - 16);
+        
+        // Dynamic collision size
+        setCollisionSize((int)(ts * 0.75), (int)(ts * 0.65));
+
+        // Randomly select a model from Model 1 to Model 5
+        java.util.Random rand = new java.util.Random();
+        int modelNum = rand.nextInt(5) + 1; // 1 to 5
+        String modelName = "Model " + modelNum;
+        loadSprites(modelName, CharacterTier.SSR);
     }
 
     // ── Public methods for item effects ─────────────────────────────────────

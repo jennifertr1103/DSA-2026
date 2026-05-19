@@ -16,7 +16,7 @@ public class ItemSpawner {
 
     // Thời gian spawn (tick)
     private int spawnTimer = 0;
-    private int spawnInterval = 15 * 60; // 15 giây
+    private int spawnInterval = 10 * 60; // 10 giây
 
     private List<Item> activeItems = new ArrayList<>();
 
@@ -27,7 +27,7 @@ public class ItemSpawner {
     }
 
     private void resetSpawnTimer() {
-        // Random từ 10 đến 20 giây
+        // Random từ 7 đến 15 giây
         spawnInterval = 10 * 60 + random.nextInt(10 * 60);
         spawnTimer = spawnInterval;
     }

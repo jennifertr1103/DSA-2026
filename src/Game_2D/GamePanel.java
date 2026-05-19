@@ -161,7 +161,7 @@ public class GamePanel extends JPanel implements Runnable {
             bot2.setStartDelay(0);
             bots.add(bot2);
 
-            Bot bot3 = new Bot(this, 13, 10, 3);
+            Bot bot3 = new Bot(this, 14, 10, 3);
             bot3.setStartDelay(1);
             bots.add(bot3);
 

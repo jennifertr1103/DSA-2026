@@ -30,15 +30,12 @@ public class Player2 extends Entity implements Destructible {
         this.gp = gp;
         this.keyH2 = keyH2;
 
-        solidArea.x = SOLID_AREA_X;
-        solidArea.y = SOLID_AREA_Y;
-        solidArea.width = SOLID_AREA_W;
-        solidArea.height = SOLID_AREA_H;
-
         setDefaultValues();
 
-        // Thử load ảnh (Giả sử player 2 là R, folder tên "player2")
-        // Nếu không có ảnh, nó sẽ tự động fallback về vẽ hình.
+        // Dynamic collision size
+        int ts = gp.tileM.getTileSize();
+        setCollisionSize((int)(ts * 0.75), (int)(ts * 0.65));
+
         loadSprites("player2", CharacterTier.R);
     }
 

@@ -46,7 +46,7 @@ public class CharacterSelectionPanel extends JPanel {
         this.setBackground(new Color(30, 30, 40));
 
         try {
-            background = ImageIO.read(getClass().getResource("/res/UI/BG2.png"));
+            background = ImageIO.read(getClass().getResource("/res/UI/BG1.png"));
         } catch (IOException | NullPointerException e) {
             System.err.println("Could not load BG2.png");
         }

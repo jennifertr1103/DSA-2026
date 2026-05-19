@@ -22,20 +22,43 @@ public class InstructionPanel extends JPanel {
             System.err.println("Could not load InstructionPanel.png");
         }
 
-        backButton = new JButton("BACK");
-        backButton.setBounds(20, 20, 100, 40);
-        styleButton(backButton);
-        add(backButton);
-
-        backButton.addActionListener(e -> main.showMenu());
+        backButton = createImageButton("/res/button/back.png");
+        if (backButton != null) {
+            int bw = backButton.getPreferredSize().width;
+            int bh = backButton.getPreferredSize().height;
+            backButton.setBounds(20, (GamePanel.HEIGHT + GamePanel.HUD_HEIGHT) - bh - 20, bw, bh);
+            add(backButton);
+            backButton.addActionListener(e -> main.showMenu());
+        }
     }
 
-    private void styleButton(JButton btn) {
-        btn.setFont(new Font("Arial", Font.BOLD, 16));
-        btn.setFocusPainted(false);
-        btn.setBackground(new Color(70, 70, 70));
-        btn.setForeground(Color.WHITE);
-        btn.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+    private JButton createImageButton(String path) {
+        try {
+            java.net.URL imgURL = getClass().getResource(path);
+            if (imgURL != null) {
+                BufferedImage img = ImageIO.read(imgURL);
+                if (img != null) {
+                    int targetHeight = 80;
+                    double ratio = (double) img.getWidth() / img.getHeight();
+                    int targetWidth = (int) (targetHeight * ratio);
+
+                    Image scaledImg = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+                    ImageIcon icon = new ImageIcon(scaledImg);
+                    
+                    JButton btn = new JButton(icon);
+                    btn.setPreferredSize(new Dimension(targetWidth, targetHeight));
+                    btn.setBorder(BorderFactory.createEmptyBorder());
+                    btn.setContentAreaFilled(false);
+                    btn.setFocusPainted(false);
+                    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    
+                    return btn;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load button: " + path);
+        }
+        return null;
     }
 
     @Override

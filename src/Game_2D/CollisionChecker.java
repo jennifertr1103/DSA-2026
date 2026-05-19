@@ -28,18 +28,22 @@ public class CollisionChecker {
 
 
         // Chặn không cho các cạnh của Hitbox vượt quá giới hạn pixel của Map
+        int maxCol = gp.tileM.getMaxCol();
+        int maxRow = gp.tileM.getMaxRow();
+        int tileSize = gp.tileM.getTileSize();
+
         if (nextLeftX < 0 ||
-                nextRightX > gp.maxWorldCol * gp.tileSize ||
+                nextRightX > maxCol * tileSize ||
                 nextTopY < 0 ||
-                nextBottomY > gp.maxWorldRow * gp.tileSize) {
+                nextBottomY > maxRow * tileSize) {
 
             entity.collisionOn = true;
             return; // Dừng lại, không cần check Tile bên dưới nữa
         }
 
         // 3. Chuyển đổi tọa độ pixel dự đoán sang tọa độ ô lưới (Tile grid)
-        int tileSize = gp.tileSize;
         int probeColA, probeRowA, probeColB, probeRowB;
+
 
         switch (dir) {
             case UP:

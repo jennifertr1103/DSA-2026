@@ -26,7 +26,7 @@ public class Player2 extends Entity implements Destructible {
     private int speedBoostTimer = 0;
     private int originalSpeed = DEFAULT_SPEED;
 
-    public Player2(GamePanel gp, KeyHandler2 keyH2) {
+    public Player2(GamePanel gp, Game_2D.KeyHandler2 keyH2) {
         this.gp = gp;
         this.keyH2 = keyH2;
 
@@ -36,11 +36,19 @@ public class Player2 extends Entity implements Destructible {
         solidArea.height = SOLID_AREA_H;
 
         setDefaultValues();
+
+        // Thử load ảnh (Giả sử player 2 là R, folder tên "player2")
+        // Nếu không có ảnh, nó sẽ tự động fallback về vẽ hình.
+        loadSprites("player2", CharacterTier.R);
     }
 
+
     private void setDefaultValues() {
-        worldX = gp.tileSize * 14;  // Bottom-right corner (col 14)
-        worldY = gp.tileSize * 10;  // row 10
+        int ts = gp.tileM.getTileSize();
+        int mc = gp.tileM.getMaxCol();
+        int mr = gp.tileM.getMaxRow();
+        worldX = ts * (mc - 2);  // Bottom-right corner
+        worldY = ts * (mr - 2);  
         speed = DEFAULT_SPEED;
         originalSpeed = DEFAULT_SPEED;
         direction = Direction.UP;
@@ -72,8 +80,6 @@ public class Player2 extends Entity implements Destructible {
     public void update() {
         if (!alive) return;
 
-
-
         if (speedBoostTimer > 0) {
             speedBoostTimer--;
             if (speedBoostTimer <= 0) speed = originalSpeed;
@@ -81,13 +87,11 @@ public class Player2 extends Entity implements Destructible {
 
         // Bomb placement with Enter key
         if (keyH2.bombKeyPressed) {
-
             keyH2.consumeBombKey();
             gp.bombAlgo.placeBomb(getCol(), getRow(), this);
         }
 
         boolean anyKey = keyH2.upPress || keyH2.downPress || keyH2.leftPress || keyH2.rightPress;
-
 
         if (anyKey) {
             if (keyH2.upPress) direction = Direction.UP;
@@ -100,7 +104,6 @@ public class Player2 extends Entity implements Destructible {
             if (!collisionOn) {
                 worldX += direction.dx * speed;
                 worldY += direction.dy * speed;
-                System.out.println("Player2 moved to: " + worldX + "," + worldY); // DEBUG
             }
             advanceWalkAnimation();
         }
@@ -114,16 +117,6 @@ public class Player2 extends Entity implements Destructible {
     }
 
     @Override
-    public int getCol() {
-        return (worldX + solidArea.x + solidArea.width / 2) / gp.tileSize;
-    }
-
-    @Override
-    public int getRow() {
-        return (worldY + solidArea.y + solidArea.height / 2) / gp.tileSize;
-    }
-
-    @Override
     public boolean isDestroyed() {
         return !alive;
     }
@@ -132,11 +125,17 @@ public class Player2 extends Entity implements Destructible {
     public void draw(Graphics2D g2) {
         if (!alive) return;
 
+        // Nếu đã có ảnh thì vẽ ảnh và return luôn
+        if (usingSprites) {
+            super.draw(g2);
+            return;
+        }
+
         if (invincible && (System.currentTimeMillis() / 120) % 2 == 0) return;
 
         int x = worldX;
         int y = worldY;
-        int s = gp.tileSize - 4;
+        int s = gp.tileM.getTileSize() - 4;
 
         // Drop shadow
         g2.setColor(new Color(0, 0, 0, 40));
@@ -213,9 +212,19 @@ public class Player2 extends Entity implements Destructible {
     }
 
     @Override
+    public int getCol() {
+        return (worldX + solidArea.x + solidArea.width / 2) / gp.tileM.getTileSize();
+    }
+
+    @Override
+    public int getRow() {
+        return (worldY + solidArea.y + solidArea.height / 2) / gp.tileM.getTileSize();
+    }
+
+    @Override
     public int getScreenX() { return worldX; }
     @Override
     public int getScreenY() { return worldY; }
     @Override
-    public int getDrawSize() { return gp.tileSize; }
+    public int getDrawSize() { return gp.tileM.getTileSize(); }
 }

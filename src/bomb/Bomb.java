@@ -52,12 +52,13 @@ public class Bomb extends Entity implements Destructible {
         this.appearance     = appearance;
         this.owner          = owner;
 
-        this.worldX    = col * gp.tileSize;
-        this.worldY    = row * gp.tileSize;
+        int ts = gp.tileM.getTileSize();
+        this.worldX    = col * ts;
+        this.worldY    = row * ts;
         this.direction = Direction.DOWN;
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // ── Update ──────────────────────────────────────────────────────────────
 
     @Override
     public void update() {
@@ -69,19 +70,19 @@ public class Bomb extends Entity implements Destructible {
         return !exploded && countdown <= 0;
     }
 
-    // ── Explosion ─────────────────────────────────────────────────────────────
+    // ── Explosion ────────────────────────────────────────────────────────────
 
     /**
      * Produces Flames in 4 directions.
      * Arms stop at hard walls; bricks are consumed and stop the arm.
      */
-    public List<Flame> explode(FlameAppearance flameAppearance, int flameDurationTicks) {
-        if (exploded) return List.of();
+    public java.util.List<Flame> explode(FlameAppearance flameAppearance, int flameDurationTicks) {
+        if (exploded) return java.util.List.of();
         exploded  = true;
         destroyed = true;
 
-        TileManager tm     = gp.tileM;
-        List<Flame> flames = new ArrayList<>();
+        tile.TileManager tm     = gp.tileM;
+        java.util.List<Flame> flames = new java.util.ArrayList<>();
 
         flames.add(new Flame(gp, col, row, FlameDirection.CENTER,
                              flameDurationTicks, flameAppearance, algorithm));
@@ -94,7 +95,7 @@ public class Bomb extends Entity implements Destructible {
         return flames;
     }
 
-    private void spread(TileManager tm, List<Flame> out, FlameDirection dir,
+    private void spread(tile.TileManager tm, java.util.List<Flame> out, FlameDirection dir,
                         int dx, int dy, FlameAppearance ap, int dur) {
         for (int step = 1; step <= explosionScale; step++) {
             int c = col + dx * step;
@@ -110,7 +111,7 @@ public class Bomb extends Entity implements Destructible {
         }
     }
 
-    // ── Destructible (chain reactions) ────────────────────────────────────────
+    // ── Destructible (chain reactions) ───────────────────────────────────────
 
     @Override
     public void onDestroyedByFlame() {
@@ -120,7 +121,7 @@ public class Bomb extends Entity implements Destructible {
 
     public void disappear() { destroyed = true; }
 
-    // ── Accessors ─────────────────────────────────────────────────────────────
+    // ── Accessors ────────────────────────────────────────────────────────────
 
     @Override public boolean isDestroyed() { return destroyed;      }
     @Override public int     getCol()      { return col;            }
@@ -128,15 +129,15 @@ public class Bomb extends Entity implements Destructible {
 
     public int    getCountdown()       { return countdown;       }
     public int    getExplosionScale()  { return explosionScale;  }
-    public Entity getOwner()           { return owner;           } // ← NEW
+    public Entity getOwner()           { return owner;           }
 
     @Override public int getScreenX()  { return worldX;          }
     @Override public int getScreenY()  { return worldY;          }
-    @Override public int getDrawSize() { return gp.tileSize;     }
+    @Override public int getDrawSize() { return gp.tileM.getTileSize();     }
 
     @Override
     public void draw(Graphics2D g2) {
         if (exploded) return;
-        appearance.draw(g2, getScreenX(), getScreenY(), gp.tileSize, countdown);
+        appearance.draw(g2, getScreenX(), getScreenY(), gp.tileM.getTileSize(), countdown);
     }
 }

@@ -25,42 +25,59 @@ public class StartPanel extends JPanel {
             System.err.println("Could not load StartPanel.png");
         }
 
-        int btnWidth = 240;
-        int btnHeight = 60;
-        int centerX = (GamePanel.WIDTH - btnWidth) / 2;
-        int startY = 520; // Middle bottom area
+        // Tạo nút bằng hình ảnh
+        startButton = createImageButton("/res/button/start.png");
+        howToPlayButton = createImageButton("/res/button/how to play.png");
 
-        startButton = new JButton("START");
-        startButton.setBounds(centerX, startY, btnWidth, btnHeight);
-        styleButton(startButton);
+        // Căn chỉnh vị trí
+        int centerX = GamePanel.WIDTH / 2;
+        int startY = 450;
 
-        howToPlayButton = new JButton("HOW TO PLAY");
-        howToPlayButton.setBounds(centerX, startY + btnHeight + 20, btnWidth, btnHeight);
-        styleButton(howToPlayButton);
-
-        add(startButton);
-        add(howToPlayButton);
-
-        startButton.addActionListener(e -> main.showGame());
-        howToPlayButton.addActionListener(e -> main.showInstructions());
+        if (startButton != null) {
+            int sw = startButton.getPreferredSize().width;
+            int sh = startButton.getPreferredSize().height;
+            startButton.setBounds(centerX - sw / 2, startY, sw, sh);
+            add(startButton);
+            startButton.addActionListener(e -> main.showSelection());
+            
+            // Nút How to play sẽ nằm dưới nút Start một khoảng hợp lý
+            if (howToPlayButton != null) {
+                int hw = howToPlayButton.getPreferredSize().width;
+                int hh = howToPlayButton.getPreferredSize().height;
+                howToPlayButton.setBounds(centerX - hw / 2, startY + sh + 20, hw, hh);
+                add(howToPlayButton);
+                howToPlayButton.addActionListener(e -> main.showInstructions());
+            }
+        }
     }
 
-    private void styleButton(JButton btn) {
-        btn.setFont(new Font("Arial", Font.BOLD, 22));
-        btn.setFocusPainted(false);
-        btn.setBackground(new Color(255, 140, 0)); // Dark Orange
-        btn.setForeground(Color.WHITE);
-        btn.setBorder(BorderFactory.createRaisedBevelBorder());
-        
-        // Hover effect
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                btn.setBackground(new Color(255, 165, 0)); // Orange
+    private JButton createImageButton(String path) {
+        try {
+            java.net.URL imgURL = getClass().getResource(path);
+            if (imgURL != null) {
+                BufferedImage img = ImageIO.read(imgURL);
+                if (img != null) {
+                    int targetHeight = 100;
+                    double ratio = (double) img.getWidth() / img.getHeight();
+                    int targetWidth = (int) (targetHeight * ratio);
+
+                    Image scaledImg = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+                    ImageIcon icon = new ImageIcon(scaledImg);
+                    
+                    JButton btn = new JButton(icon);
+                    btn.setPreferredSize(new Dimension(targetWidth, targetHeight));
+                    btn.setBorder(BorderFactory.createEmptyBorder());
+                    btn.setContentAreaFilled(false);
+                    btn.setFocusPainted(false);
+                    btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    
+                    return btn;
+                }
             }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                btn.setBackground(new Color(255, 140, 0));
-            }
-        });
+        } catch (Exception e) {
+            System.err.println("Could not load button: " + path);
+        }
+        return null;
     }
 
     @Override

@@ -57,20 +57,19 @@ public class Bot extends Entity implements Destructible {
     public Bot(GamePanel gp, int startCol, int startRow, int botId) {
         this.gp   = gp;
         this.botId = botId;
-        worldX    = startCol * gp.tileSize;
-        worldY    = startRow * gp.tileSize;
+        int ts = gp.tileM.getTileSize();
+        worldX    = startCol * ts;
+        worldY    = startRow * ts;
         speed     = DEFAULT_SPEED;
         life      = 3;
         direction = Direction.DOWN;
-        solidArea.setBounds(8, 8, gp.tileSize - 16, gp.tileSize - 16);
+        solidArea.setBounds(8, 8, ts - 16, ts - 16);
     }
 
     // ── Public methods for item effects ─────────────────────────────────────
 
     public void applySpeedBoost(int boostAmount, int duration) {
-        // Simple speed boost for bot (could be expanded with timer like player)
         this.speed = DEFAULT_SPEED + boostAmount;
-        // Reset speed after duration (using a simple timer in update)
         speedBoostTimer = duration;
     }
 
@@ -100,9 +99,8 @@ public class Bot extends Entity implements Destructible {
                     isActive = true;
                 }
             }
-            return;  // Bot chưa active thì không làm gì cả
+            return;
         }
-
 
         updateCommonLogic();
         bombCooldownTimer = Math.max(0, bombCooldownTimer - 1);
@@ -123,26 +121,22 @@ public class Bot extends Entity implements Destructible {
             lastActiveItemCount = currentItemCount;
         }
 
-        // ── Plan (rate-limited, or immediately on state change) ──────────────
+        // ── Plan (rate-limited) ────────────────────────────────────────────────
         if (replanTimer == 0) {
             int curCol = getCol();
             int curRow = getRow();
-            Set<String> danger = Pathfinder.buildDangerSet(gp);
+            java.util.Set<String> danger = Pathfinder.buildDangerSet(gp);
             boolean inDanger = danger.contains(Pathfinder.key(curCol, curRow));
 
             if (inDanger) {
                 aiState = BotState.EVADE;
                 planEvade(curCol, curRow, danger);
             } else {
-                // Priority: HUNT -> CLEAR -> COLLECT
-                if (planHunt (curCol, curRow, danger)) {
-                    // target set in planHunt
+                if (planHunt(curCol, curRow, danger)) {
                 } else if (planClear(curCol, curRow, danger)) {
-                    // target set in planClear
                 } else if (planCollect(curCol, curRow, danger)) {
-                    // target set in planCollect
                 } else {
-                    aiState = BotState.HUNT; // Default idle
+                    aiState = BotState.HUNT;
                     targetCol = -1;
                     targetRow = -1;
                 }
@@ -150,7 +144,6 @@ public class Bot extends Entity implements Destructible {
             replanTimer = REPLAN_INTERVAL;
         }
 
-        // ── Move one step toward target cell ─────────────────────────────────
         stepTowardTarget();
     }
 
@@ -163,13 +156,11 @@ public class Bot extends Entity implements Destructible {
         return walkableCount <= 2;
     }
 
-    // ── COLLECT: move to the nearest item ───────────────────────────────────
-
-    private boolean planCollect(int curCol, int curRow, Set<String> danger) {
+    private boolean planCollect(int curCol, int curRow, java.util.Set<String> danger) {
         int[] itemCell = Pathfinder.nearestItem(gp, curCol, curRow);
         if (itemCell == null) return false;
 
-        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, itemCell[0], itemCell[1], danger);
+        java.util.List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, itemCell[0], itemCell[1], danger);      
         if (path != null && path.size() > 1) {
             aiState = BotState.COLLECT;
             targetCol = path.get(1)[0];
@@ -179,29 +170,23 @@ public class Bot extends Entity implements Destructible {
         return false;
     }
 
-    // ── EVADE: move to the nearest safe cell ─────────────────────────────────
-
-    private void planEvade(int curCol, int curRow, Set<String> danger) {
+    private void planEvade(int curCol, int curRow, java.util.Set<String> danger) {
         int[] safe = Pathfinder.nearestSafeCell(gp, curCol, curRow, danger);
-        if (safe == null) return;  // completely surrounded — stay put
+        if (safe == null) return;
 
-        List<int[]> path = Pathfinder.shortestPath(
-                gp, curCol, curRow, safe[0], safe[1], null); // allow any path when fleeing
+        java.util.List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, safe[0], safe[1], null);
         if (path != null && path.size() > 1) {
             targetCol = path.get(1)[0];
             targetRow = path.get(1)[1];
         }
     }
 
-    // ── CLEAR: find and destroy a brick ─────────────────────────────────────
-
-    private boolean planClear(int curCol, int curRow, Set<String> danger) {
+    private boolean planClear(int curCol, int curRow, java.util.Set<String> danger) {
         int[] brickCell = Pathfinder.nearestBrick(gp, curCol, curRow);
         if (brickCell == null) return false;
 
         aiState = BotState.CLEAR;
         if (curCol == brickCell[0] && curRow == brickCell[1]) {
-            // Already next to a brick
             if (bombCooldownTimer == 0) {
                 gp.bombAlgo.placeBomb(curCol, curRow, this);
                 bombCooldownTimer = BOMB_COOLDOWN;
@@ -211,7 +196,7 @@ public class Bot extends Entity implements Destructible {
             return true;
         }
 
-        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, brickCell[0], brickCell[1], danger);
+        java.util.List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, brickCell[0], brickCell[1], danger);    
         if (path != null && path.size() > 1) {
             targetCol = path.get(1)[0];
             targetRow = path.get(1)[1];
@@ -220,18 +205,14 @@ public class Bot extends Entity implements Destructible {
         return false;
     }
 
-    // ── HUNT: chase the player; place a bomb when close ───────────────────────
-
-    private boolean planHunt(int curCol, int curRow, Set<String> danger) {
+    private boolean planHunt(int curCol, int curRow, java.util.Set<String> danger) {
         int playerCol = gp.player.getCol();
         int playerRow = gp.player.getRow();
         int dist = Math.abs(playerCol - curCol) + Math.abs(playerRow - curRow);
 
-        List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, playerCol, playerRow, danger);
+        java.util.List<int[]> path = Pathfinder.shortestPath(gp, curCol, curRow, playerCol, playerRow, danger);
         if (path != null && path.size() > 1) {
             aiState = BotState.HUNT;
-
-            // Logic chặn đường (Blocking) hoặc tấn công (Attack)
             boolean shouldBlock = (dist <= 3 && isNarrowPassage(curCol, curRow));
             boolean shouldAttack = (dist <= 2);
 
@@ -250,27 +231,19 @@ public class Bot extends Entity implements Destructible {
         return false;
     }
 
-    // ── Pixel movement toward the planned grid cell ───────────────────────────
-
-    /**
-     * Moves the bot's pixel position toward (targetCol, targetRow) at
-     * `speed` pixels per tick, using CollisionChecker so it respects walls
-     * exactly like the Player does.
-     *
-     * Includes auto-alignment (centering) to prevent stuttering on corners.
-     */
     private void stepTowardTarget() {
         if (targetCol < 0) return;
 
-        int tx = targetCol * gp.tileSize;
-        int ty = targetRow * gp.tileSize;
+        int ts = gp.tileM.getTileSize();
+        int tx = targetCol * ts;
+        int ty = targetRow * ts;
 
         int dx = Integer.compare(tx, worldX);
         int dy = Integer.compare(ty, worldY);
 
         if (dx != 0) {
             // Moving horizontally - nudge Y to center of current row
-            int idealY = (worldY + gp.tileSize / 2) / gp.tileSize * gp.tileSize;
+            int idealY = (worldY + ts / 2) / ts * ts;
             if (worldY < idealY)      worldY = Math.min(idealY, worldY + speed);
             else if (worldY > idealY) worldY = Math.max(idealY, worldY - speed);
 
@@ -281,7 +254,7 @@ public class Bot extends Entity implements Destructible {
             else replanTimer = 0; // If blocked, replan immediately
         } else if (dy != 0) {
             // Moving vertically - nudge X to center of current column
-            int idealX = (worldX + gp.tileSize / 2) / gp.tileSize * gp.tileSize;
+            int idealX = (worldX + ts / 2) / ts * ts;
             if (worldX < idealX)      worldX = Math.min(idealX, worldX + speed);
             else if (worldX > idealX) worldX = Math.max(idealX, worldX - speed);
 
@@ -315,9 +288,9 @@ public class Bot extends Entity implements Destructible {
     }
 
     @Override
-    public int     getCol()      { return (worldX + solidArea.x + solidArea.width  / 2) / gp.tileSize; }
+    public int     getCol()      { return (worldX + solidArea.x + solidArea.width  / 2) / gp.tileM.getTileSize(); }
     @Override
-    public int     getRow()      { return (worldY + solidArea.y + solidArea.height / 2) / gp.tileSize; }
+    public int     getRow()      { return (worldY + solidArea.y + solidArea.height / 2) / gp.tileM.getTileSize(); }
     @Override
     public boolean isDestroyed() { return !alive; }
 
@@ -327,12 +300,18 @@ public class Bot extends Entity implements Destructible {
     public void draw(Graphics2D g2) {
         if (!alive) return;
 
+        // Nếu đã có ảnh thì vẽ ảnh và return luôn
+        if (usingSprites) {
+            super.draw(g2);
+            return;
+        }
+
         // Blink while invincible
         if (invincible && (System.currentTimeMillis() / 120) % 2 == 0) return;
 
         int x = worldX;
         int y = worldY;
-        int s = gp.tileSize - 4;
+        int s = gp.tileM.getTileSize() - 4;
 
         // Bot specific colors based on ID
         Color primaryColor = new Color(45, 40, 50); // Default Kuromi Black
@@ -475,5 +454,5 @@ public class Bot extends Entity implements Destructible {
     }
     @Override public int getScreenX()  { return worldX;       }
     @Override public int getScreenY()  { return worldY;       }
-    @Override public int getDrawSize() { return gp.tileSize;  }
+    @Override public int getDrawSize() { return gp.tileM.getTileSize();  }
 }

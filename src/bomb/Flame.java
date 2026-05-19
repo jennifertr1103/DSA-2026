@@ -49,8 +49,9 @@ public class Flame extends Entity {
         this.appearance = appearance;
         this.algorithm = algorithm;
 
-        this.worldX = col * gp.tileSize;
-        this.worldY = row * gp.tileSize;
+        int ts = gp.tileM.getTileSize();
+        this.worldX = col * ts;
+        this.worldY = row * ts;
         this.direction = Direction.DOWN; // Entity requires one
     }
 
@@ -71,9 +72,9 @@ public class Flame extends Entity {
      * of explosion in Bomb.spread() so that the spread itself stops at
      * the brick and the destruction is deterministic.
      */
-    public void destroyTarget(List<Destructible> targets) {
+    public void destroyTarget(java.util.List<entity.Destructible> targets) {
         if (expired) return;
-        for (Destructible d : targets) {
+        for (entity.Destructible d : targets) {
             if (d.isDestroyed()) continue;
             if (d.getCol() == col && d.getRow() == row) {
                 d.onDestroyedByFlame();
@@ -92,12 +93,12 @@ public class Flame extends Entity {
 
     @Override public int getScreenX()  { return worldX; }
     @Override public int getScreenY()  { return worldY; }
-    @Override public int getDrawSize() { return gp.tileSize; }
+    @Override public int getDrawSize() { return gp.tileM.getTileSize(); }
 
     @Override
     public void draw(Graphics2D g2) {
         if (expired) return;
-        appearance.draw(g2, getScreenX(), getScreenY(), gp.tileSize,
+        appearance.draw(g2, getScreenX(), getScreenY(), gp.tileM.getTileSize(),
                 flameDirection, duration, totalDuration);
     }
 }

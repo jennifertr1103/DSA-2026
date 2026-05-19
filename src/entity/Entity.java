@@ -4,31 +4,21 @@ import Game_2D.Renderable;
 import Game_2D.Updatable;
 import bomb.Bomb;
 
+import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
-/**
- * Abstract base for every character (Player, Bot).
- *
- * CHANGES from original:
- *   • Added per-entity Queue<Bomb> bombQueue (FIFO) and int maxBombs.
- *     Each entity owns its own queue.  BombAlgorithm.placeBomb(col, row, owner)
- *     enqueues the same Bomb into BOTH this queue and the global timing
- *     queue, preserving FIFO order in both.
- *   • getBombQueue() / getMaxBombs() accessors added.
- *   • updateCommonLogic() now calls bombQueue.removeIf(Bomb::isDestroyed)
- *     so the per-entity cap is reclaimed automatically after detonation.
- *   • takeDamage() fixed: no longer sets alive=false on the first hit;
- *     invincibility window added so rapid multi-hits are ignored.
- *   • Sprite / animation helpers kept exactly as the original.
- */
-
 public abstract class Entity implements Updatable, Renderable {
+
+    public enum CharacterTier {
+        SSR, R, C
+    }
 
     public int worldX, worldY;
     public int speed;
@@ -49,6 +39,8 @@ public abstract class Entity implements Updatable, Renderable {
     protected final Map<Direction, BufferedImage[]> sprites = new EnumMap<>(Direction.class);
     public int spriteCounter = 0;
     public int spriteNum     = 1;
+    protected boolean usingSprites = false; // Flag to check if images were successfully loaded
+    public CharacterTier tier = CharacterTier.SSR; // Default tier
 
     // ── Collision ─────────────────────────────────────────────────────────────
     public Rectangle solidArea           = new Rectangle(0, 0, 48, 48);
@@ -56,17 +48,7 @@ public abstract class Entity implements Updatable, Renderable {
     public boolean   collisionOn         = false;
 
     // ── Per-entity bomb queue (NEW) ───────────────────────────────────────────
-    /**
-     * Personal FIFO bomb queue.
-     *
-     * Bombs are offered to the tail by BombAlgorithm.placeBomb(owner)
-     * and removed from the head when they detonate.  The queue size is
-     * checked against maxBombs before allowing a new placement so each
-     * character cannot spam more than their allotted simultaneous bombs.
-     */
     private final Queue<Bomb> bombQueue = new LinkedList<>();
-
-    /** Maximum live bombs this entity may have on the board at once. */
     protected int maxBombs = 3;
 
     // ── Damage ────────────────────────────────────────────────────────────────
@@ -88,7 +70,6 @@ public abstract class Entity implements Updatable, Renderable {
     // ── Common per-frame logic (call from subclass update()) ──────────────────
 
     protected void updateCommonLogic() {
-        // Tick invincibility window down
         if (invincible) {
             invincibleCounter++;
             if (invincibleCounter >= INVINCIBLE_TICKS) {
@@ -96,41 +77,78 @@ public abstract class Entity implements Updatable, Renderable {
                 invincibleCounter = 0;
             }
         }
-        // Reclaim capacity for any bombs that have already detonated
         bombQueue.removeIf(Bomb::isDestroyed);
     }
 
     // ── Bomb queue accessors ──────────────────────────────────────────────────
 
-    /** Returns this entity's personal bomb queue (FIFO). */
     public Queue<Bomb> getBombQueue() { return bombQueue; }
-
-    /** Hard cap on simultaneous live bombs. */
     public int getMaxBombs() { return maxBombs; }
-
-    // ── Hitbox ────────────────────────────────────────────────────────────────
 
     public Rectangle getWorldHitbox() {
         return new Rectangle(worldX + solidArea.x, worldY + solidArea.y,
                              solidArea.width, solidArea.height);
     }
 
-    // ── Sprite helpers (unchanged) ────────────────────────────────────────────
+    // ── Sprite Loading (NEW TIERED SYSTEM) ────────────────────────────────────
 
-    protected void setSprites(Direction dir, BufferedImage f1, BufferedImage f2) {
-        sprites.put(dir, new BufferedImage[]{ f1, f2 });
+    /**
+     * Loads character sprites based on their tier.
+     * folderName: The folder inside /res/player/ containing the images (e.g., "Model 1").
+     */
+    protected void loadSprites(String folderName, CharacterTier tier) {
+        this.tier = tier;
+        String basePath = "/res/player/" + folderName + "/";
+        
+        try {
+            if (tier == CharacterTier.SSR || tier == CharacterTier.R) {
+                // Tier SSR & R: 3 frames per direction in sub-folders
+                setSprites(Direction.UP,    loadImage(basePath + "back/1.png"),  loadImage(basePath + "back/2.png"),  loadImage(basePath + "back/3.png"));
+                setSprites(Direction.DOWN,  loadImage(basePath + "front/1.png"), loadImage(basePath + "front/2.png"), loadImage(basePath + "front/3.png"));
+                setSprites(Direction.LEFT,  loadImage(basePath + "left/1.png"),  loadImage(basePath + "left/2.png"),  loadImage(basePath + "left/3.png"));
+                setSprites(Direction.RIGHT, loadImage(basePath + "right/1.png"), loadImage(basePath + "right/2.png"), loadImage(basePath + "right/3.png"));
+            } else if (tier == CharacterTier.C) {
+                // Tier C: 1 frame per direction in sub-folders
+                setSprites(Direction.UP,    loadImage(basePath + "back/1.png"));
+                setSprites(Direction.DOWN,  loadImage(basePath + "front/1.png"));
+                setSprites(Direction.LEFT,  loadImage(basePath + "left/1.png"));
+                setSprites(Direction.RIGHT, loadImage(basePath + "right/1.png"));
+            }
+            usingSprites = true;
+            System.out.println("Successfully loaded sprites for: " + folderName);
+        } catch (Exception e) {
+            System.err.println("FAILED to load sprites for [" + folderName + "] at path [" + basePath + "]");
+            System.err.println("Error: " + e.getMessage());
+            usingSprites = false;
+        }
+    }
+
+    private BufferedImage loadImage(String path) throws IOException {
+        java.net.URL url = getClass().getResource(path);
+        if (url == null) throw new IOException("File not found: " + path);
+        return ImageIO.read(url);
+    }
+
+    protected void setSprites(Direction dir, BufferedImage... frames) {
+        sprites.put(dir, frames);
     }
 
     protected BufferedImage currentFrame() {
         BufferedImage[] frames = sprites.get(direction);
         if (frames == null || frames.length == 0) return null;
-        return frames[Math.max(0, Math.min(frames.length - 1, spriteNum - 1))];
+        int index = Math.max(0, Math.min(frames.length - 1, spriteNum - 1));
+        return frames[index];
     }
 
     protected void advanceWalkAnimation() {
+        if (tier == CharacterTier.C) return;
+
         spriteCounter++;
         if (spriteCounter > 10) {
-            spriteNum     = (spriteNum == 1) ? 2 : 1;
+            spriteNum++;
+            if (spriteNum > 3) {
+                spriteNum = 1;
+            }
             spriteCounter = 0;
         }
     }
@@ -139,16 +157,39 @@ public abstract class Entity implements Updatable, Renderable {
 
     @Override
     public void draw(Graphics2D g2) {
-        if (invincible) {
-            g2.setComposite(java.awt.AlphaComposite.getInstance(
-                    java.awt.AlphaComposite.SRC_OVER, 0.35f));
+        if (!alive) return;
+        
+        if (invincible && (System.currentTimeMillis() / 120) % 2 == 0) return;
+
+        if (usingSprites) {
+            BufferedImage frame = currentFrame();
+            if (frame != null) {
+                int tileSize = getDrawSize();
+                
+                // Tỉ lệ gốc của ảnh
+                double imgRatio = (double) frame.getWidth() / frame.getHeight();
+                
+                // Tăng kích thước cơ bản lên 1.5 lần ô gạch
+                double scaleMult = 1.5;
+                
+                // Bù đắp thị giác: Khi đi ngang (thân mỏng), ta phóng to thêm 15% để nhân vật trông đỡ nhỏ
+                if (direction == Direction.LEFT || direction == Direction.RIGHT) {
+                    scaleMult *= 1.15;
+                }
+
+                int drawHeight = (int) (tileSize * scaleMult); 
+                int drawWidth = (int) (drawHeight * imgRatio);
+                
+                // Căn giữa ngang và đặt chân nhân vật chạm đáy ô gạch
+                int x = getScreenX() + (tileSize - drawWidth) / 2;
+                int y = getScreenY() + tileSize - drawHeight;
+
+                g2.drawImage(frame, x, y, drawWidth, drawHeight, null);
+                return;
+            }
         }
-        BufferedImage frame = currentFrame();
-        if (frame != null) {
-            g2.drawImage(frame, getScreenX(), getScreenY(), getDrawSize(), getDrawSize(), null);
-        }
-        g2.setComposite(java.awt.AlphaComposite.getInstance(
-                java.awt.AlphaComposite.SRC_OVER, 1f));
+        
+        // Cần override ở class con nếu muốn fallback
     }
 
     public abstract int getScreenX();

@@ -33,16 +33,14 @@ public class GamePanel extends JPanel implements Runnable {
     public static final int WIDTH         = TILE_SIZE * MAX_COLUMN;   // 1024
     public static final int HEIGHT        = TILE_SIZE * MAX_ROW;      //  768
 
-    public final int tileSize = TILE_SIZE;
+    public final int tileSize = TILE_SIZE; // Will be shadowed by tileM.getTileSize() in logic
     public final int width = WIDTH;
     public final int height = HEIGHT;
-    public final int maxColumn = MAX_COLUMN;
-    public final int maxRow = MAX_ROW;
 
-    public final int maxWorldCol  = 16;
-    public final int maxWorldRow  = 12;
-    public final int worldWidth   = TILE_SIZE * maxWorldCol;
-    public final int worldHeight  = TILE_SIZE * maxWorldRow;
+    public int getMaxWorldCol() { return tileM.getMaxCol(); }
+    public int getMaxWorldRow() { return tileM.getMaxRow(); }
+    public int getWorldWidth()  { return tileM.getMaxCol() * tileM.getTileSize(); }
+    public int getWorldHeight() { return tileM.getMaxRow() * tileM.getTileSize(); }
 
     private static final int FPS        = 60;
     public static final int HUD_HEIGHT = 70; // Tăng lên 70 để chứa speed boost bar
@@ -67,7 +65,15 @@ public class GamePanel extends JPanel implements Runnable {
     private GameState gameState = GameState.PLAY;
     private String  winnerLabel = "";
 
-    // ── Thread ──────────────────────────────────────────────────────────────
+    public void setMultiplayer(boolean multiplayer) {
+        this.multiplayer = multiplayer;
+    }
+
+    public void setGameState(GameState state) {
+        this.gameState = state;
+    }
+
+    // ── Thread ────────────────────────────────────────────────────
     private volatile boolean running = false;
     private Thread gameThread;
 

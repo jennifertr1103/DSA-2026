@@ -42,11 +42,16 @@ public class Player extends Entity implements Destructible {
         solidArea.height = SOLID_AREA_H;
 
         setDefaultValues();
+        
+        // Thử load ảnh (Giả sử player 1 là SSR, folder tên "Model 1")
+        // Nếu không có ảnh, nó sẽ tự động fallback về vẽ hình My Melody.
+        loadSprites("Model 1", CharacterTier.SSR);
     }
 
     private void setDefaultValues() {
-        worldX    = gp.tileSize * 1;
-        worldY    = gp.tileSize * 1;
+        int ts = gp.tileM.getTileSize();
+        worldX    = ts * 1;
+        worldY    = ts * 1;
         speed     = DEFAULT_SPEED;
         originalSpeed = DEFAULT_SPEED;
         direction = Direction.DOWN;
@@ -68,7 +73,7 @@ public class Player extends Entity implements Destructible {
         }
     }
 
-    // ── Getters ─────────────────────────────────────────────────────────────
+    // ── Getters ──────────────────────────────────────────────────────────────
 
     public int getSpeedBoostTimer() {
         return speedBoostTimer;
@@ -82,7 +87,7 @@ public class Player extends Entity implements Destructible {
         return originalSpeed;
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // ── Update ───────────────────────────────────────────────────────────────
 
     @Override
     public void update() {
@@ -130,12 +135,12 @@ public class Player extends Entity implements Destructible {
 
     @Override
     public int getCol() {
-        return (worldX + solidArea.x + solidArea.width / 2) / gp.tileSize;
+        return (worldX + solidArea.x + solidArea.width / 2) / gp.tileM.getTileSize();
     }
 
     @Override
     public int getRow() {
-        return (worldY + solidArea.y + solidArea.height / 2) / gp.tileSize;
+        return (worldY + solidArea.y + solidArea.height / 2) / gp.tileM.getTileSize();
     }
 
     @Override
@@ -149,12 +154,18 @@ public class Player extends Entity implements Destructible {
     public void draw(Graphics2D g2) {
         if (!alive) return;
 
+        // Nếu đã có ảnh thì vẽ ảnh và return luôn
+        if (usingSprites) {
+            super.draw(g2);
+            return;
+        }
+
         // Blink while invincible
         if (invincible && (System.currentTimeMillis() / 120) % 2 == 0) return;
 
         int x = worldX;
         int y = worldY;
-        int s = gp.tileSize - 4;
+        int s = gp.tileM.getTileSize() - 4;
 
         // Drop shadow
         g2.setColor(new Color(0, 0, 0, 40));
@@ -257,6 +268,6 @@ public class Player extends Entity implements Destructible {
 
     @Override
     public int getDrawSize() {
-        return gp.tileSize;
+        return gp.tileM.getTileSize();
     }
 }

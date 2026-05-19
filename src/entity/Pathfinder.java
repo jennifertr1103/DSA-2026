@@ -92,7 +92,7 @@ public final class Pathfinder {
                                            int sc, int sr,
                                            int gc, int gr,
                                            Set<String> extraBlocked) {
-        if (sc < 0 || gc >= gp.maxWorldCol || sr < 0 || gr >= gp.maxWorldRow) return null;
+        if (sc < 0 || gc >= gp.getMaxWorldCol() || sr < 0 || gr >= gp.getMaxWorldRow()) return null;
         if (sc == gc && sr == gr) return Collections.singletonList(new int[]{ sc, sr });
 
         Map<String, int[]> parent = new HashMap<>();

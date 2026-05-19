@@ -15,6 +15,9 @@ public class Main {
     private GamePanel gPanel;
     private StartPanel sPanel;
     private InstructionPanel iPanel;
+    private SelectionPanel selectionPanel;
+    private ModeSelectionPanel modeSelectionPanel;
+    private GachaPanel gachaPanel;
     private SoundManager soundManager;
 
     public static void main(String[] args) {
@@ -23,6 +26,10 @@ public class Main {
 
     public SoundManager getSoundManager() {
         return soundManager;
+    }
+
+    public GamePanel getGamePanel() {
+        return gPanel;
     }
 
     private void launch() {
@@ -38,9 +45,15 @@ public class Main {
         gPanel = new GamePanel(this);
         sPanel = new StartPanel(this);
         iPanel = new InstructionPanel(this);
+        selectionPanel = new SelectionPanel(this);
+        modeSelectionPanel = new ModeSelectionPanel(this, gPanel);
+        gachaPanel = new GachaPanel(this);
 
         mainPanel.add(sPanel, "MENU");
         mainPanel.add(iPanel, "INSTRUCTIONS");
+        mainPanel.add(selectionPanel, "SELECTION");
+        mainPanel.add(modeSelectionPanel, "MODE_SELECTION");
+        mainPanel.add(gachaPanel, "GACHA");
         mainPanel.add(gPanel, "GAME");
 
         window.add(mainPanel);
@@ -75,6 +88,21 @@ public class Main {
     public void showInstructions() {
         cardLayout.show(mainPanel, "INSTRUCTIONS");
         iPanel.requestFocusInWindow();
+    }
+
+    public void showSelection() {
+        cardLayout.show(mainPanel, "SELECTION");
+        selectionPanel.requestFocusInWindow();
+    }
+
+    public void showModeSelection() {
+        cardLayout.show(mainPanel, "MODE_SELECTION");
+        modeSelectionPanel.requestFocusInWindow();
+    }
+
+    public void showGacha() {
+        cardLayout.show(mainPanel, "GACHA");
+        gachaPanel.requestFocusInWindow();
     }
 
     public void showGame() {

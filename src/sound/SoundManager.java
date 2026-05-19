@@ -38,13 +38,14 @@ public class SoundManager {
     }
 
     private void initSoundPaths() {
-        soundPaths.put(SoundType.OPENING, "/sound/opening.wav");
-        soundPaths.put(SoundType.BGMUSIC, "/sound/bgmusic.wav");
-        soundPaths.put(SoundType.BOMB,    "/sound/bomb.wav");
-        soundPaths.put(SoundType.PICKUP,  "/sound/pickup.wav");
-        soundPaths.put(SoundType.WIN,     "/sound/win.wav");
-        soundPaths.put(SoundType.LOSE,    "/sound/lose.wav");
+        soundPaths.put(SoundType.OPENING, "/res/sound/opening.wav");
+        soundPaths.put(SoundType.BGMUSIC, "/res/sound/bgmusic.wav");
+        soundPaths.put(SoundType.BOMB,    "/res/sound/bomb.wav");
+        soundPaths.put(SoundType.PICKUP,  "/res/sound/pickup.wav");
+        soundPaths.put(SoundType.WIN,     "/res/sound/win.wav");
+        soundPaths.put(SoundType.LOSE,    "/res/sound/lose.wav");
     }
+
 
     private void initVolumes() {
         volumes.put(SoundType.OPENING, 0.7f);

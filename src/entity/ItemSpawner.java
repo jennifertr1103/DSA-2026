@@ -52,11 +52,14 @@ public class ItemSpawner {
 
     private void spawnItem() {
         List<int[]> validPositions = new ArrayList<>();
+        int maxRow = gp.tileM.getMaxRow();
+        int maxCol = gp.tileM.getMaxCol();
 
-        for (int row = 0; row < gp.maxWorldRow; row++) {
-            for (int col = 0; col < gp.maxWorldCol; col++) {
+        for (int row = 0; row < maxRow; row++) {
+            for (int col = 0; col < maxCol; col++) {
                 if (gp.tileM.isSolid(col, row)) continue;
 
+                // Check if there's already a bomb at this position
                 boolean hasBomb = false;
                 for (Bomb bomb : gp.bombAlgo.getActiveBombs()) {
                     if (bomb.getCol() == col && bomb.getRow() == row) {
@@ -66,6 +69,7 @@ public class ItemSpawner {
                 }
                 if (hasBomb) continue;
 
+                // Check if there's already an item at this position
                 boolean hasItem = false;
                 for (Item item : activeItems) {
                     if (item.getCol() == col && item.getRow() == row) {
@@ -75,8 +79,11 @@ public class ItemSpawner {
                 }
                 if (hasItem) continue;
 
+                // Check if a player is at this position
                 if (gp.player.getCol() == col && gp.player.getRow() == row) continue;
+                if (gp.player2 != null && gp.player2.getCol() == col && gp.player2.getRow() == row) continue;
 
+                // Check if a bot is at this position
                 boolean onBot = false;
                 for (Bot b : gp.bots) {
                     if (b.getCol() == col && b.getRow() == row) {
@@ -147,8 +154,9 @@ public class ItemSpawner {
     }
 
     public void draw(Graphics2D g2) {
+        int ts = gp.tileM.getTileSize();
         for (Item item : activeItems) {
-            item.draw(g2, gp.tileSize);
+            item.draw(g2, ts);
         }
     }
 

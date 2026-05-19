@@ -29,21 +29,105 @@ public class TileManager {
     private static final Color C_BORDER_GOLD = new Color(218, 165, 32);    // Vàng đồng
     private static final Color C_BORDER_SHADOW = new Color(50, 50, 60);
 
+    // ── Map Types ──────────────────────────────────────────────────────────
+    public enum MapType { CLASSIC, IMAGE }
+    private MapType currentMapType = MapType.CLASSIC;
+    private java.awt.image.BufferedImage fullMapImage;
+
+    // ── DYNAMIC DIMENSIONS ───────────────────────────────────────────
+    public int getTileSize() { return (currentMapType == MapType.IMAGE) ? 48 : 64; }
+    public int getMaxCol()   { return (currentMapType == MapType.IMAGE) ? 21 : 16; }
+    public int getMaxRow()   { return (currentMapType == MapType.IMAGE) ? 16 : 12; }
+
     // ── State ────────────────────────────────────────────────────────────────
     private final GamePanel gp;
     public Tile[] tile;
-    public int[][] mapTileNum;
+    public int[][] mapTileNum; // Sẽ được cấp phát lại khi đổi map
 
     // ── Construction ─────────────────────────────────────────────────────────
     public TileManager(GamePanel gp) {
-        this.gp         = gp;
-        this.tile       = buildCatalog();
-        this.mapTileNum = new int[gp.maxWorldCol][gp.maxWorldRow];
-        reset();
+        this.gp   = gp;
+        this.tile = buildCatalog();
+        
+        loadMapAssets();
+        setMap(MapType.CLASSIC); // Mặc định là map classic
+    }
+
+    private void loadMapAssets() {
+        try {
+            // Load ảnh full map mới (map2.png)
+            fullMapImage = javax.imageio.ImageIO.read(getClass().getResourceAsStream("/res/map/map2.png"));
+        } catch (Exception e) {
+            System.err.println("Could not load full map image: " + e.getMessage());
+        }
+    }
+
+    public void setMap(MapType type) {
+        this.currentMapType = type;
+        
+        // Cấp phát lại mảng map với kích thước mới
+        int rows = getMaxRow();
+        int cols = getMaxCol();
+        mapTileNum = new int[cols][rows];
+
+        if (type == MapType.CLASSIC) {
+            int[][] classicMap = {
+                    {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2},
+                    {2,0,3,3,3,3,0,0,0,0,0,0,3,0,0,2},
+                    {2,0,2,3,2,0,2,3,2,0,2,0,2,3,2,2},
+                    {2,3,0,0,3,3,0,0,0,0,0,0,3,3,3,2},
+                    {2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,2},
+                    {2,0,0,0,3,0,3,0,0,0,3,0,0,0,3,2},
+                    {2,3,2,3,2,0,2,0,2,0,2,3,2,3,2,2},
+                    {2,0,3,3,0,3,0,0,0,3,3,0,0,3,3,2},
+                    {2,3,2,3,2,3,2,0,2,3,2,3,2,0,2,2},
+                    {2,3,0,3,0,0,3,3,3,0,3,0,3,3,0,2},
+                    {2,0,2,3,2,0,2,3,2,0,2,3,2,3,0,2},
+                    {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2}
+            };
+            for (int r = 0; r < 12; r++) {
+                for (int c = 0; c < 16; c++) {
+                    mapTileNum[c][r] = classicMap[r][c];
+                }
+            }
+        } else {
+            // Map 2 (IMAGE): Tự động tạo lưới 48x48 (21x16 ô)
+            Random rng = new Random();
+            for (int r = 0; r < rows; r++) {
+                for (int c = 0; c < cols; c++) {
+                    if (r == 0 || r == rows - 1 || c == 0 || c == cols - 1) {
+                        mapTileNum[c][r] = ID_HARD_WALL;
+                    } else if (r % 2 == 0 && c % 2 == 0) {
+                        mapTileNum[c][r] = ID_HARD_WALL;
+                    } else {
+                        // Bảo vệ spawn points
+                        boolean isNearSpawn = (r <= 2 && c <= 2) || (r <= 2 && c >= cols - 3) || 
+                                              (r >= rows - 3 && c <= 2) || (r >= rows - 3 && c >= cols - 3);
+                        if (!isNearSpawn && rng.nextInt(100) < 60) {
+                            mapTileNum[c][r] = ID_BRICK;
+                        } else {
+                            mapTileNum[c][r] = ID_PATH;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Luôn bảo vệ spawn points chính xác sau khi gán
+        int mc = getMaxCol();
+        int mr = getMaxRow();
+        mapTileNum[1][1] = ID_PATH;
+        mapTileNum[mc-2][1] = ID_PATH;
+        mapTileNum[1][mr-2] = ID_PATH;
+        mapTileNum[mc-2][mr-2] = ID_PATH;
     }
 
     public void reset() {
-        generateMap(new Random(System.currentTimeMillis()));
+        setMap(currentMapType);
+    }
+
+    public MapType getCurrentMapType() {
+        return currentMapType;
     }
 
     private Tile[] buildCatalog() {
@@ -53,45 +137,6 @@ public class TileManager {
         t[ID_HARD_WALL] = new Tile(Tile.TileType.HARD_WALL,  C_HARD_FILL,  true,  false);
         t[ID_BRICK]     = new Tile(Tile.TileType.BRICK_WALL, C_HARD_FILL, true,  true);
         return t;
-    }
-
-    private void generateMap(Random rng) {
-        // 0 = PATH (đường đi)
-        // 2 = HARD_WALL (tường cứng - không phá được)
-        // 3 = BRICK (tường gạch - phá được)
-        // 1 = brick đặt trong map
-
-        int[][] customMap = {
-                {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2},
-                {2,0,3,3,3,3,0,0,0,0,0,0,3,0,0,2},
-                {2,0,2,3,2,0,2,3,2,0,2,0,2,3,2,2},
-                {2,3,0,0,3,3,0,0,0,0,0,0,3,3,3,2},
-                {2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,2},
-                {2,0,0,0,3,0,3,0,0,0,3,0,0,0,3,2},
-                {2,3,2,3,2,0,2,0,2,0,2,3,2,3,2,2},
-                {2,0,3,3,0,3,0,0,0,3,3,0,0,3,3,2},
-                {2,3,2,3,2,3,2,0,2,3,2,3,2,0,2,2},
-                {2,3,0,3,0,0,3,3,3,0,3,0,3,3,0,2},
-                {2,0,2,3,2,0,2,3,2,0,2,3,2,3,0,2},
-                {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2}
-        };
-
-        // Gán vào mapTileNum
-        for (int row = 0; row < gp.maxWorldRow; row++) {
-            for (int col = 0; col < gp.maxWorldCol; col++) {
-                mapTileNum[col][row] = customMap[row][col];
-            }
-        }
-
-        // (Tùy chọn) Xóa gạch ở vị trí spawn để tránh bị kẹt
-        // Player 1 spawn ở (1,1)
-        if (mapTileNum[1][1] == ID_BRICK) mapTileNum[1][1] = ID_PATH;
-        // Player 2 spawn ở (14,1)
-        if (mapTileNum[14][1] == ID_BRICK) mapTileNum[14][1] = ID_PATH;
-        // Bot 1 spawn ở (1,10)
-        if (mapTileNum[1][10] == ID_BRICK) mapTileNum[1][10] = ID_PATH;
-        // Bot 2 spawn ở (13,10)
-        if (mapTileNum[13][10] == ID_BRICK) mapTileNum[13][10] = ID_PATH;
     }
 
     private boolean isBorderOrPillar(int col, int row, int cols, int rows) {
@@ -110,14 +155,14 @@ public class TileManager {
 
     // ── Queries ────────────────────────────────────────────────────────────────
     public boolean isSolid(int col, int row) {
-        if (col < 0 || row < 0 || col >= gp.maxWorldCol || row >= gp.maxWorldRow) return true;
+        if (col < 0 || row < 0 || col >= gp.getMaxWorldCol() || row >= gp.getMaxWorldRow()) return true;
         int id = mapTileNum[col][row];
         if (id < 0 || id >= tile.length || tile[id] == null) return true;
         return tile[id].collision;
     }
 
     public boolean isBrick(int col, int row) {
-        if (col < 0 || row < 0 || col >= gp.maxWorldCol || row >= gp.maxWorldRow) return false;
+        if (col < 0 || row < 0 || col >= gp.getMaxWorldCol() || row >= gp.getMaxWorldRow()) return false;
         int id = mapTileNum[col][row];
         if (id < 0 || id >= tile.length || tile[id] == null) return false;
         return tile[id].destructible;
@@ -129,10 +174,28 @@ public class TileManager {
 
     // ── Rendering ────────────────────────────────────────────────────────────
     public void draw(Graphics2D g2) {
-        int t = gp.tileSize;
-        for (int row = 0; row < gp.maxWorldRow; row++) {
-            for (int col = 0; col < gp.maxWorldCol; col++) {
-                drawTile(g2, col, row, col * t, row * t, t);
+        if (currentMapType == MapType.IMAGE && fullMapImage != null) {
+            // Vẽ ảnh full map làm nền
+            g2.drawImage(fullMapImage, 0, 0, gp.getWorldWidth(), gp.getWorldHeight(), null);
+            
+            // Vẽ vật cản đè lên ảnh nền
+            int t = gp.tileSize;
+            for (int row = 0; row < gp.getMaxWorldRow(); row++) {
+                for (int col = 0; col < gp.getMaxWorldCol(); col++) {
+                    int id = mapTileNum[col][row];
+                    // Vẽ cả tường cứng (HARD_WALL) và gạch phá được (BRICK)
+                    if (id == ID_HARD_WALL || id == ID_BRICK) {
+                        drawTile(g2, col, row, col * t, row * t, t);
+                    }
+                }
+            }
+        } else {
+            // Vẽ map classic (từng ô)
+            int t = gp.tileSize;
+            for (int row = 0; row < gp.getMaxWorldRow(); row++) {
+                for (int col = 0; col < gp.getMaxWorldCol(); col++) {
+                    drawTile(g2, col, row, col * t, row * t, t);
+                }
             }
         }
     }
@@ -169,7 +232,7 @@ public class TileManager {
                 g2.drawLine(x + 2, y + t - 3, x + t - 3, y + t - 3);
 
                 // Gạch viền trang trí (đường kẻ vàng)
-                if (col == 0 || col == gp.maxWorldCol - 1 || row == 0 || row == gp.maxWorldRow - 1) {
+                if (col == 0 || col == gp.getMaxWorldCol() - 1 || row == 0 || row == gp.getMaxWorldRow() - 1) {
                     g2.setColor(C_BORDER_GOLD);
                     g2.setStroke(new BasicStroke(2));
                     g2.drawRect(x + 3, y + 3, t - 7, t - 7);
@@ -183,8 +246,18 @@ public class TileManager {
                 break;
 
             case BRICK_WALL:
-                // Vẽ bông hoa
-                drawFlower(g2, x, y, t);
+                if (currentMapType == MapType.IMAGE) {
+                    // Vẽ gạch kiểu tường đá thay vì hoa khi dùng Image Map
+                    g2.setColor(new Color(120, 100, 80)); // Màu gạch nâu
+                    g2.fillRect(x + 2, y + 2, t - 4, t - 4);
+                    g2.setColor(new Color(150, 130, 110));
+                    g2.drawRect(x + 2, y + 2, t - 4, t - 4);
+                    // Chi tiết viên gạch
+                    g2.drawLine(x + 2, y + t/2, x + t - 3, y + t/2);
+                } else {
+                    // Vẽ bông hoa (giữ nguyên cho map classic nếu muốn)
+                    drawFlower(g2, x, y, t);
+                }
                 break;
         }
     }
